@@ -248,20 +248,37 @@ endfunction()
 
 
 function(flat_add_sync_target TARGET DESTINATION)
+	cmake_parse_arguments(f "" "OUTPUT" "DEPENDS" ${ARGN})
+
 	set(file_sep "!!fs!!")
 
-	add_custom_target(${TARGET}
-		COMMAND "${PYTHON_EXECUTABLE}"
-			"${Flat_SyncScript}"
+	set(command
+		COMMAND "${PYTHON_EXECUTABLE}" "${Flat_SyncScript}"
 			"--destination-root=$<TARGET_PROPERTY:${TARGET},DestinationRoot>"
 			"--source=$<JOIN:$<TARGET_PROPERTY:${TARGET},SyncSourceList>,${file_sep}>"
 			"--destination=$<JOIN:$<TARGET_PROPERTY:${TARGET},SyncDestinationList>,${file_sep}>"
 			"--delete=$<JOIN:$<TARGET_PROPERTY:${TARGET},SyncDeleteList>,${file_sep}>"
 			"--copy-symlinks=$<JOIN:$<TARGET_PROPERTY:${TARGET},SyncCopySymlinksList>,${file_sep}>"
 			"--excludes=$<JOIN:$<TARGET_PROPERTY:${TARGET},SyncExcludesList>,${file_sep}>"
-		WORKING_DIRECTORY
-			"${CMAKE_CURRENT_BINARY_DIR}"
 	)
+
+	if ( f_OUTPUT )
+		add_custom_command(
+			OUTPUT "${f_OUTPUT}"
+			${command}
+			COMMAND ${CMAKE_COMMAND} -E touch "${f_OUTPUT}"
+			WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+			DEPENDS ${f_DEPENDS}
+		)
+
+		add_custom_target(${TARGET} DEPENDS "${f_OUTPUT}")
+	else()
+		add_custom_target(${TARGET}
+			${command}
+			WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+			DEPENDS ${f_DEPENDS}
+		)
+	endif()
 
 	set_target_properties(${TARGET} PROPERTIES
 		SyncList ""
