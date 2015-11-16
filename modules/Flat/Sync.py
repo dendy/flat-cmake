@@ -128,6 +128,7 @@ class Main:
 			if not source or source == '/':
 				raise Exception('Invalid source:', source)
 			expandedSources = glob.glob(source)
+			expandedSources = [x.replace('\\', '/') for x in expandedSources]
 			sourcePaths += expandedSources if len(expandedSources) != 0 else [source];
 
 		for exclude in excludes:
