@@ -120,6 +120,8 @@ class Main:
 
 
 	def sync(self, sources, destination, delete=False, excludes=[], copySymlinks=False, verbose=False, strict=True):
+		destinationHead, destinationTail = os.path.split(destination)
+
 		sourcePaths = []
 
 		rsyncExcludeArgs = []
@@ -127,9 +129,21 @@ class Main:
 		for source in sources:
 			if not source or source == '/':
 				raise Exception('Invalid source:', source)
+			sourceHead, sourceTail = os.path.split(source)
+			if not sourceTail and destinationTail:
+				raise Exception('Invalid source-destination pair:', destination, source,
+						'If source ends with / then destination must also ends with /')
 			expandedSources = glob.glob(source)
 			expandedSources = [x.replace('\\', '/') for x in expandedSources]
 			sourcePaths += expandedSources if len(expandedSources) != 0 else [source];
+
+		if destinationTail:
+			if len(sourcePaths) != 1:
+				raise Exception('More than one source has same destination path:', destination, sourcePaths)
+			sourcePath = sourcePaths[0]
+			if os.path.isdir(sourcePath):
+				sourcePaths = [sourcePath + '/']
+				destination += '/'
 
 		for exclude in excludes:
 			path, isLocal = toCygwinPath(exclude) if sys.platform == 'win32' else (exclude, None)
