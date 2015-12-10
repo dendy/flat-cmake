@@ -263,9 +263,12 @@ function(flat_add_sync_target TARGET DESTINATION)
 	)
 
 	if ( f_OUTPUT )
+		get_filename_component(output_directory "${f_OUTPUT}" DIRECTORY)
+
 		add_custom_command(
 			OUTPUT "${f_OUTPUT}"
 			${command}
+			COMMAND ${CMAKE_COMMAND} -E make_directory "${output_directory}"
 			COMMAND ${CMAKE_COMMAND} -E touch "${f_OUTPUT}"
 			WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
 			DEPENDS ${f_DEPENDS}
