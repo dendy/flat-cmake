@@ -91,8 +91,7 @@ class Main:
 		self.existingDestinationDirs = set()
 
 		self.emptyDir = os.path.join(os.path.abspath(os.curdir), 'empty-rsync-dir').replace(os.path.sep, '/')
-		if not os.path.isdir(self.emptyDir):
-			os.mkdir(self.emptyDir)
+		os.makedirs(self.emptyDir, exist_ok=True)
 
 		for (destination, copySymlinks), entries in self.entriesForTarget.items():
 			excludes = []
