@@ -1,0 +1,19 @@
+#!/usr/bin/python3
+
+import os
+import sys
+import subprocess
+
+if __name__ == '__main__':
+	paths = [@PATH_LIST@]
+	env = dict(@ENV_LIST@)
+
+	if paths:
+		@TO_NATIVE_SEPARATORS_COMMAND@
+		pathValue = '@PATH_SEP@'.join(paths) + '@PATH_SEP@' + os.getenv('PATH')
+		os.putenv('PATH', pathValue)
+
+	for envKey in env:
+		os.putenv(envKey, env[envKey])
+
+	sys.exit(subprocess.run(sys.argv[1:]).returncode)

@@ -8,6 +8,9 @@ find_package(PythonCompiler REQUIRED)
 
 # scripts
 set(Flat_SyncScript "${CMAKE_CURRENT_LIST_DIR}/Sync.py")
+set(Flat_RunWithEnvScriptIn "${CMAKE_CURRENT_LIST_DIR}/run-with-env.py.in")
+set(Flat_CheckGitRevisionScript "${CMAKE_CURRENT_LIST_DIR}/check-git-revision.py")
+set(Flat_EraseCurrentDirScript "${CMAKE_CURRENT_LIST_DIR}/erase-current-dir.py")
 
 
 # sources
@@ -705,6 +708,337 @@ function(flat_deploy_qt5 TARGET)
 
 	if ( "${f_FONTS}" STREQUAL "ALL" )
 		flat_sync("${share_target}" "${qt5_libexecs_dir}/fonts/" DESTINATION "lib/fonts/")
+	endif()
+endfunction()
+
+
+# Save environment variables into cache in form ENV_${varname}.
+# Cached values will be initialized ONLY once with initial env var values.
+# Subsequent calls of flat_cache_env_vars() with same arguments will NOT
+# update cached values unless they are explicitly cleared first with unset().
+#
+# Example:
+#   flat_cache_env_vars(FOO BAR)
+#
+# Above command will create entries in cache:
+#   ENV_FOO=$ENV{FOO}
+#   ENV_BAR=$ENV{BAR}
+
+function(flat_cache_env)
+	foreach ( var ${ARGN} )
+		set(force_flag)
+		if ( "${ENV_${var}}" STREQUAL "" )
+			set(force_flag FORCE)
+		endif()
+		set(ENV_${var} "$ENV{${var}}" CACHE STRING "" ${force_flag})
+	endforeach()
+endfunction()
+
+
+# Create and save launch script FILE with specified environment.
+# If script with exactly same environment already present in FILE
+# then it will not be overwritten. This make possible to add FILE as
+# dependency for other build commands.
+#
+# flat_make_launch_script() implicitly calls flat_cache_env(${ENV}).
+#
+# Arguments:
+#   ENV   - environment variable names, values will be taken from environment
+#   VARS  - environment variable name/value pairs
+#   PATHS - paths to be added to PATH environment variable
+
+function(flat_make_launch_script FILE)
+	set(Python_ADDITIONAL_VERSIONS 3.5-32)
+	find_package(PythonInterp 3.5 REQUIRED)
+
+	cmake_parse_arguments(f "" "" "ENV;VARS;PATHS" ${ARGN})
+
+	flat_cache_env(${f_ENV})
+
+	set(env_list)
+
+	foreach ( var ${f_ENV} )
+		list(APPEND env_list "${var}=\'${ENV_${var}}\'")
+	endforeach()
+
+	list(LENGTH f_VARS vars_length)
+	math(EXPR vars_mod "${vars_length}%2")
+	if ( NOT ${vars_mod} EQUAL 0 )
+		message(FATAL_ERROR "VARS count should be even")
+	endif()
+	math(EXPR vars_count "${vars_length}/2")
+	set(var_i 0)
+	while ( ${var_i} LESS ${vars_count} )
+		math(EXPR var_key_i "${var_i}*2")
+		math(EXPR var_value_i "${var_key_i} + 1")
+		math(EXPR var_i "${var_i} + 1")
+		list(GET f_VARS ${var_key_i} var_key)
+		list(GET f_VARS ${var_value_i} var_value)
+		list(APPEND env_list "${var_key}=\'${var_value}\'")
+	endwhile()
+
+	set(paths ${f_PATHS})
+	if ( paths )
+		list(SORT paths)
+	endif()
+	set(PATH_LIST)
+	foreach ( path ${paths} )
+		if ( NOT "${PATH_LIST}" STREQUAL "" )
+			set(PATH_LIST "${PATH_LIST}, ")
+		endif()
+		set(PATH_LIST "${PATH_LIST}\'${path}\'")
+	endforeach()
+
+	if ( env_list )
+		list(SORT env_list)
+	endif()
+	set(ENV_LIST)
+	foreach ( env ${env_list} )
+		if ( NOT "${ENV_LIST}" STREQUAL "" )
+			set(ENV_LIST "${ENV_LIST}, ")
+		endif()
+		set(ENV_LIST "${ENV_LIST}${env}")
+	endforeach()
+
+	if ( "${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Windows" )
+		set(PATH_SEP ";")
+		set(TO_NATIVE_SEPARATORS_COMMAND "paths = [x.replace('/', '\\') for x in paths]")
+	else()
+		set(PATH_SEP ":")
+		set(TO_NATIVE_SEPARATORS_COMMAND "pass")
+	endif()
+
+	configure_file("${Flat_RunWithEnvScriptIn}" "${FILE}.orig" @ONLY)
+	execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different "${FILE}.orig" "${FILE}")
+	execute_process(COMMAND ${CMAKE_COMMAND} -E remove "${FILE}.orig")
+endfunction()
+
+
+# Create target to check whether git repository revision has been updated.
+#
+# Arguments:
+#   TARGET - phony target name
+#   OUTPUT - output to be touched when git repository content changed,
+#            this is a byproduct of TARGET
+
+function(flat_check_git TARGET OUTPUT GIT)
+	add_custom_target(${TARGET}
+		COMMAND "${PYTHON_EXECUTABLE}" "${Flat_CheckGitRevisionScript}" "${GIT}" "${OUTPUT}"
+		BYPRODUCTS "${OUTPUT}"
+	)
+endfunction()
+
+
+function(flat_collect_args VAR PATTERN)
+	cmake_parse_arguments(f "" "COUNT" "" ${ARGN})
+
+	if ( "${f_COUNT}" STREQUAL "" )
+		set(count 2)
+	else()
+		set(count ${f_COUNT})
+	endif()
+
+	set(args ${f_UNPARSED_ARGUMENTS})
+	list(LENGTH args args_length)
+	math(EXPR args_mod "${args_length}%${count}")
+	if ( NOT ${args_mod} EQUAL 0 )
+		message(FATAL_ERROR "Argument count should be even: ${args_length} ${args}")
+	endif()
+	math(EXPR args_count "${args_length}/${count}")
+
+	set(vars)
+	set(var "${PATTERN}")
+	set(i 0)
+	foreach ( arg ${args} )
+		math(EXPR i "${i} + 1")
+		string(REPLACE "@${i}@" "${arg}" var "${var}")
+		if ( ${i} EQUAL ${count} )
+			list(APPEND vars "${var}")
+			set(var "${PATTERN}")
+			set(i 0)
+		endif()
+	endforeach()
+	
+	set(${VAR} "${vars}" PARENT_SCOPE)
+endfunction()
+
+
+# Create rule to configure external CMake project.
+#
+# Arguments:
+#   SOURCE_DIR     - path to sources directory with CMakeLists.txt
+#   BUILD_DIR      - path to build dir in which to configure and build project
+#   GENERATOR      - generator to use, default: ${CMAKE_GENERATOR}
+#   ENV            - environment variables with which to configure the project
+#   ENV_PATHS      - paths to add to PATH environment variable when configuring the project
+#   ARGS           - CMake variables for configuring the project
+#   GIT_DIRS       - git dirs to check revision update from, when any git dir is changed then
+#                    invoke the build again and touch the BUILD_TARGET_FILE
+#   DEPENDS        - additional file dependencies
+
+function(flat_configure_cmake_project TARGET)
+	set(Python_ADDITIONAL_VERSIONS 3.5-32)
+	find_package(PythonInterp 3.5 REQUIRED)
+
+	cmake_parse_arguments(f "" "SOURCE_DIR;BUILD_DIR;GENERATOR;MAKE" "ENV;ENV_PATHS;ARGS;GIT_DIRS;DEPENDS" ${ARGN})
+
+	# vars
+	set(build_dir "${f_BUILD_DIR}")
+	set(cmake_build_dir "${build_dir}/build")
+	set(build_dir_target "${build_dir}/build-dir")
+
+	# launch
+	set(run_script "${build_dir}/run.py")
+
+	flat_make_launch_script("${run_script}"
+		VARS ${f_ENV}
+		PATHS ${f_ENV_PATHS}
+	)
+
+	# args
+	flat_collect_args(args "-D@1@=@2@" ${f_ARGS})
+
+	if ( f_GENERATOR )
+		set(generator "${f_GENERATOR}")
+	else()
+		set(generator "${CMAKE_GENERATOR}")
+	endif()
+	
+	set(build_make "${CMAKE_MAKE_PROGRAM}")
+
+	# generator
+	if ( "${generator}" STREQUAL "Ninja" )
+		set(build_file "build.ninja")
+		set(build_make "ninja")
+	elseif ( "${generator}" STREQUAL "Unix Makefiles" )
+		set(build_file "Makefile")
+		set(build_make "make")
+	elseif ( "${generator}" STREQUAL "MinGW Makefiles" )
+		set(build_file "Makefile")
+		set(build_make "mingw32-make")
+	else()
+		message(FATAL_ERROR "Unsupported generator: ${generator}")
+	endif()
+
+	if ( f_MAKE )
+		set(build_make "${f_MAKE}")
+	endif()
+
+	# git
+	set(git_targets)
+	set(git_files)
+	set(git_dir_keys)
+
+	foreach ( git_dir ${f_GIT_DIRS} )
+		# generate unique target name
+		get_filename_component(git_dir_name "${git_dir}" NAME)
+		get_filename_component(git_dir_path "${git_dir}" DIRECTORY)
+		get_filename_component(git_dir_name2 "${git_dir_path}" NAME)
+		set(git_dir_suffix)
+		while ( TRUE )
+			set(git_dir_key "${git_dir_name2}_${git_dir_name}")
+			if ( git_dir_suffix )
+				set(git_dir_key "${git_dir_key}_${git_dir_suffix}")
+			endif()
+			list(FIND git_dir_keys "${git_dir_key}" git_dir_key_index)
+			if ( ${git_dir_key_index} EQUAL -1 )
+				break()
+			endif()
+			if ( NOT git_dir_suffix )
+				set(git_dir_suffix "2")
+			else()
+				math(EXPR git_dir_suffix "${git_dir_suffix} + 1")
+			endif()
+		endwhile()
+
+		set(git_target ${TARGET}_Git_${git_dir_key})
+		set(git_file "${build_dir}/git-${git_dir_key}")
+
+		flat_check_git(${git_target} "${git_file}" "${git_dir}")
+
+		list(APPEND git_targets ${git_target})
+		list(APPEND git_files "${git_file}")
+	endforeach()
+
+	# rule to create build dir
+	add_custom_command(
+		OUTPUT "${build_dir_target}"
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${cmake_build_dir}"
+		COMMAND ${CMAKE_COMMAND} -E touch "${build_dir_target}"
+	)
+
+	# rule to configure project
+	add_custom_command(
+		OUTPUT "${cmake_build_dir}/${build_file}"
+		COMMAND "${PYTHON_EXECUTABLE}" "${Flat_EraseCurrentDirScript}"
+		COMMAND "${PYTHON_EXECUTABLE}" "${run_script}" ${CMAKE_COMMAND}
+			-G "${generator}"
+			-D "CMAKE_MAKE_PROGRAM=${build_make}"
+			${args}
+			"${f_SOURCE_DIR}"
+		WORKING_DIRECTORY "${cmake_build_dir}"
+		DEPENDS "${build_dir_target}" "${run_script}" ${f_DEPENDS}
+	)
+
+	add_custom_target(${TARGET})
+
+	set_target_properties(${TARGET} PROPERTIES
+		GIT_TARGETS "${git_targets}"
+		GIT_FILES "${git_files}"
+		MAKE "${build_make}"
+		BUILD_DIR "${build_dir}"
+		CMAKE_BUILD_DIR "${cmake_build_dir}"
+		TARGET_FILE "${cmake_build_dir}/${build_file}"
+	)
+endfunction()
+
+
+# Create rule to build previously configured CMake project.
+#
+# Arguments:
+#   JOBS           - make job count when invoking build command
+
+function (flat_build_cmake_project TARGET CONFIGURE_TARGET MAKE_TARGET)
+	cmake_parse_arguments(f "" "JOBS" "")
+
+	get_target_property(build_make ${CONFIGURE_TARGET} MAKE)
+	set(make_opts)
+	get_filename_component(make_filename "${build_make}" NAME)
+	if ( "${make_filename}" STREQUAL "emake" )
+		set(make_opts "SHELL=")
+	endif()
+
+	set(make_jobs)
+	if ( f_JOBS )
+		set(make_jobs -j${f_JOBS})
+	endif()
+
+	get_target_property(build_dir ${CONFIGURE_TARGET} BUILD_DIR)
+	get_target_property(cmake_build_dir ${CONFIGURE_TARGET} CMAKE_BUILD_DIR)
+	get_target_property(git_targets ${CONFIGURE_TARGET} GIT_TARGETS)
+	get_target_property(git_files ${CONFIGURE_TARGET} GIT_FILES)
+	get_target_property(configure_target_file ${CONFIGURE_TARGET} TARGET_FILE)
+	set(build_target_file "${build_dir}/target-${MAKE_TARGET}")
+
+	# rule to build project
+	if ( git_targets )
+		add_custom_command(
+			OUTPUT "${build_target_file}"
+			COMMAND ${build_make} ${make_opts} ${make_jobs} ${MAKE_TARGET}
+			COMMAND ${CMAKE_COMMAND} -E touch "${build_target_file}"
+			WORKING_DIRECTORY "${cmake_build_dir}"
+			DEPENDS "${configure_target_file}" ${git_files}
+		)
+
+		add_custom_target(${TARGET}
+			DEPENDS "${build_target_file}" ${git_targets}
+		)
+	else()
+		add_custom_target(${TARGET}
+			COMMAND ${build_make} ${make_opts} ${make_jobs} ${MAKE_TARGET}
+			WORKING_DIRECTORY "${cmake_build_dir}"
+			DEPENDS "${configure_target_file}"
+		)
 	endif()
 endfunction()
 
