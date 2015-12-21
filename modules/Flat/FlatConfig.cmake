@@ -11,6 +11,7 @@ set(Flat_SyncScript "${CMAKE_CURRENT_LIST_DIR}/Sync.py")
 set(Flat_RunWithEnvScriptIn "${CMAKE_CURRENT_LIST_DIR}/run-with-env.py.in")
 set(Flat_CheckGitRevisionScript "${CMAKE_CURRENT_LIST_DIR}/check-git-revision.py")
 set(Flat_EraseCurrentDirScript "${CMAKE_CURRENT_LIST_DIR}/erase-current-dir.py")
+set(Flat_CollectFilesScript "${CMAKE_CURRENT_LIST_DIR}/collect-files.py")
 
 
 # sources
@@ -294,12 +295,20 @@ endfunction()
 
 
 function(flat_sync_once TARGET SOURCE DESTINATION)
-	cmake_parse_arguments(f "DELETE" "PATH" "DEPENDS" ${ARGN})
+	set(exclude_sep "!!es!!")
+
+	cmake_parse_arguments(f "DELETE" "PATH" "EXCLUDE;DEPENDS" ${ARGN})
 
 	if ( f_DELETE )
 		set(f_DELETE YES)
 	else()
 		set(f_DELETE NO)
+	endif()
+
+	if ( f_EXCLUDE )
+		string(REPLACE ";" "${exclude_sep}" excludes "${f_EXCLUDE}")
+	else()
+		set(excludes "NONE")
 	endif()
 
 	add_custom_target(${TARGET}
@@ -310,7 +319,7 @@ function(flat_sync_once TARGET SOURCE DESTINATION)
 			"--destination=${f_PATH}"
 			"--delete=${f_DELETE}"
 			"--copy-symlinks=YES"
-			"--excludes=NONE"
+			"--excludes=${excludes}"
 		WORKING_DIRECTORY
 			"${CMAKE_CURRENT_BINARY_DIR}"
 	)
@@ -997,9 +1006,12 @@ endfunction()
 #
 # Arguments:
 #   JOBS           - make job count when invoking build command
+#   OUTPUTS        - make target output files
+#   TARGETS        - targets to build
+#   DEPENDS        - additional file dependencies
 
-function (flat_build_cmake_project TARGET CONFIGURE_TARGET MAKE_TARGET)
-	cmake_parse_arguments(f "" "JOBS" "")
+function (flat_build_cmake_project TARGET CONFIGURE_TARGET)
+	cmake_parse_arguments(f "" "JOBS" "TARGETS;OUTPUTS;DEPENDS" ${ARGN})
 
 	get_target_property(build_make ${CONFIGURE_TARGET} MAKE)
 	set(make_opts)
@@ -1018,16 +1030,17 @@ function (flat_build_cmake_project TARGET CONFIGURE_TARGET MAKE_TARGET)
 	get_target_property(git_targets ${CONFIGURE_TARGET} GIT_TARGETS)
 	get_target_property(git_files ${CONFIGURE_TARGET} GIT_FILES)
 	get_target_property(configure_target_file ${CONFIGURE_TARGET} TARGET_FILE)
-	set(build_target_file "${build_dir}/target-${MAKE_TARGET}")
+	set(build_target_file "${build_dir}/target-${TARGET}")
 
 	# rule to build project
 	if ( git_targets )
 		add_custom_command(
 			OUTPUT "${build_target_file}"
-			COMMAND ${build_make} ${make_opts} ${make_jobs} ${MAKE_TARGET}
+			COMMAND ${build_make} ${make_opts} ${make_jobs} ${f_TARGETS}
 			COMMAND ${CMAKE_COMMAND} -E touch "${build_target_file}"
+			BYPRODUCTS ${f_OUTPUTS}
 			WORKING_DIRECTORY "${cmake_build_dir}"
-			DEPENDS "${configure_target_file}" ${git_files}
+			DEPENDS "${configure_target_file}" ${git_files} ${f_DEPENDS}
 		)
 
 		add_custom_target(${TARGET}
@@ -1035,11 +1048,39 @@ function (flat_build_cmake_project TARGET CONFIGURE_TARGET MAKE_TARGET)
 		)
 	else()
 		add_custom_target(${TARGET}
-			COMMAND ${build_make} ${make_opts} ${make_jobs} ${MAKE_TARGET}
+			COMMAND ${build_make} ${make_opts} ${make_jobs} ${f_TARGETS}
+			BYPRODUCTS ${f_OUTPUTS}
 			WORKING_DIRECTORY "${cmake_build_dir}"
-			DEPENDS "${configure_target_file}"
+			DEPENDS "${configure_target_file}" ${f_DEPENDS}
 		)
 	endif()
+endfunction()
+
+
+function(flat_create_file_directory FILE)
+	get_filename_component(dir "${FILE}" PATH)
+
+	execute_process(
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${dir}"
+		RESULT_VARIABLE result
+	)
+
+	if ( NOT ${result} EQUAL 0 )
+		message(FATAL_ERROR "Error creating directory: ${dir}")
+	endif()
+endfunction()
+
+
+function(flat_collect_files TARGET OUTPUT)
+	add_custom_target(${TARGET}
+		COMMAND
+			${PYTHON_EXECUTABLE} "${Flat_CollectFilesScript}" "${OUTPUT}" --paths ${ARGN}
+		BYPRODUCTS
+			"${OUTPUT}"
+		DEPENDS
+			"${Flat_CollectFilesScript}"
+		VERBATIM
+	)
 endfunction()
 
 

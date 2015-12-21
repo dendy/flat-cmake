@@ -2,78 +2,84 @@
 include(CMakeParseArguments)
 
 
+set(QmlCompiler_Executable "" CACHE FILEPATH "Path to compiler executable")
+
+
 find_package(Flat REQUIRED)
 
+set(Python_ADDITIONAL_VERSIONS 3.5-32)
+find_package(PythonInterp 3.5 REQUIRED)
 
-function(qmlcompiler_add_library TARGET)
-	cmake_parse_arguments(_qml "" "SOURCE_DIR;TARGET" "" ${ARGN})
 
-	get_target_property(_rcc ${Qt5Core_RCC_EXECUTABLE} IMPORTED_LOCATION)
+set(QmlCompiler_ScriptsDir "${CMAKE_CURRENT_LIST_DIR}")
+set(QmlCompiler_LibraryProjectDir "${CMAKE_CURRENT_LIST_DIR}/library")
+set(QmlCompiler_GenerateQmlLoaderScript "${QmlCompiler_ScriptsDir}/generate-qml-loader.py")
+set(QmlCompiler_FixQtVersionScript "${QmlCompiler_ScriptsDir}/fix-qt-version.py")
 
-	set(_qml_include_flags)
-	foreach ( _qml_include_dir ${Qt5Qml_PRIVATE_INCLUDE_DIRS} )
-		set(_qml_include_flags "${_qml_include_flags} -I${_qml_include_dir}")
-	endforeach()
 
-	set(_build_dir "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}")
-	set(_qml_files_target "${_build_dir}/qml-files.target")
-	set(_archive_file "${_build_dir}/libarchive.a")
-	set(_loader_file "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/loader.cpp")
+function(qmlcompiler_add_library TARGET LOADER_VAR)
+	cmake_parse_arguments(f "" "SOURCE_DIR;PREFIX;TARGET" "ENV" ${ARGN})
 
-	pasa_find_build_generator(_build_file_name _build_command)
+	set(build_dir "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}")
+	set(qml_files_target "${build_dir}/qml-files.target")
 
-	add_custom_target(${TARGET}_CollectQml
-		COMMAND
-			${CMAKE_COMMAND}
-			-D "QML_SOURCE_DIR=${_qml_SOURCE_DIR}"
-			-D "QML_FILES_TARGET=${_qml_files_target}"
-			-D "Pasa_SCRIPT_DIR=${Pasa_SCRIPT_DIR}"
-			-P "${Pasa_CollectQmlFilesScript}"
-		BYPRODUCTS
-			"${_qml_files_target}"
+	flat_collect_files(${TARGET}_CollectQml "${qml_files_target}" "${f_SOURCE_DIR}/**/*.qml")
+
+	if ( f_PREFIX )
+		set(prefix_args PREFIX "${f_PREFIX}")
+	else()
+		set(prefix_args)
+	endif()
+
+	if ( CMAKE_TOOLCHAIN_FILE )
+		set(toolchain_args CMAKE_TOOLCHAIN_FILE "${CMAKE_TOOLCHAIN_FILE}")
+	else()
+		set(toolchain_args)
+	endif()
+
+	if ( QmlCompiler_Executable )
+		set(qml_compiler_executable "${QmlCompiler_Executable}")
+	else()
+		set(qml_compiler_executable "${_qt5Core_install_prefix}/bin/qtquickcompiler")
+	endif()
+
+	get_target_property(rcc_executable ${Qt5Core_RCC_EXECUTABLE} IMPORTED_LOCATION)
+
+	flat_configure_cmake_project(${TARGET}_Archive_Configure
+		SOURCE_DIR "${QmlCompiler_LibraryProjectDir}"
+		BUILD_DIR "${build_dir}"
+		ENV ${f_ENV}
+		ARGS
+			Flat_DIR "${Flat_DIR}"
+			Qt5_DIR "${Qt5_DIR}"
+			QML_COMPILER_EXECUTABLE "${qml_compiler_executable}"
+			RCC_EXECUTABLE "${rcc_executable}"
+			${prefix_args}
+			${toolchain_args}
+			QML_FILES_TARGET "${qml_files_target}"
+			QML_SOURCE_DIR "${f_SOURCE_DIR}"
+			GENERATE_QML_LOADER_SCRIPT "${QmlCompiler_GenerateQmlLoaderScript}"
+			FIX_QT_VERSION_SCRIPT "${QmlCompiler_FixQtVersionScript}"
 		DEPENDS
-			"${Pasa_CollectQmlFilesScript}"
+			"${qml_files_target}"
 	)
 
-	add_custom_command(OUTPUT "${_build_dir}/${_build_file_name}"
-		COMMAND
-			${CMAKE_COMMAND} -E make_directory "${_build_dir}"
-		COMMAND
-			${CMAKE_COMMAND}
-			-G "${CMAKE_GENERATOR}"
-			-D "QML_FILES_TARGET=${_qml_files_target}"
-			-D "QML_COMPILER=${_qt5Core_install_prefix}/bin/qtquickcompiler"
-			-D "RCC=${_rcc}"
-			-D "CXX_FLAGS=${CMAKE_CXX_FLAGS} ${_qml_include_flags}"
-			-D "Qt5_DIR=${Qt5_DIR}"
-			-D "QML_SOURCE_DIR=${_qml_SOURCE_DIR}"
-			-D "LOADER_FILE=${_loader_file}"
-			-D "Pasa_SCRIPT_DIR=${Pasa_SCRIPT_DIR}"
-			-D "Pasa_GenerateQmlLoaderScript=${Pasa_GenerateQmlLoaderScript}"
-			"${Pasa_SCRIPT_DIR}/qml-compiler-project"
-		WORKING_DIRECTORY
-			"${_build_dir}"
-		DEPENDS
-			"${_qml_files_target}"
-			"${Pasa_SCRIPT_DIR}/qml-compiler-project"
-			"${Pasa_GenerateQmlLoaderScript}"
-	)
+	get_target_property(library_build_dir ${TARGET}_Archive_Configure CMAKE_BUILD_DIR)
+	set(library_output_file "${library_build_dir}/libarchive.a")
+	set(library_loader_file "${library_build_dir}/loader.cpp")
 
-	add_custom_command(OUTPUT "${_archive_file}" "${_loader_file}"
-		COMMAND ${CMAKE_COMMAND} .
-		COMMAND "${_build_command}"
-		WORKING_DIRECTORY
-			"${_build_dir}"
-		DEPENDS
-			"${_build_dir}/${_build_file_name}"
+	flat_build_cmake_project(${TARGET}_Archive_Build ${TARGET}_Archive_Configure
+		TARGETS archive loader
+		OUTPUTS "${library_output_file}" "${library_loader_file}"
 	)
-
-	add_custom_target(${TARGET}_Archive DEPENDS "${_archive_file}")
-	add_dependencies(${TARGET}_Archive ${TARGET}_CollectQml)
+	add_dependencies(${TARGET}_Archive_Build ${TARGET}_CollectQml)
 
 	add_library(${TARGET} STATIC IMPORTED)
-	add_dependencies(${TARGET} ${TARGET}_Archive)
-	set_target_properties(${TARGET} PROPERTIES IMPORTED_LOCATION "${_archive_file}")
+	add_dependencies(${TARGET} ${TARGET}_Archive_Build)
+	set_target_properties(${TARGET} PROPERTIES IMPORTED_LOCATION "${library_output_file}")
+	set_target_properties(${TARGET} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${Qt5Qml_PRIVATE_INCLUDE_DIRS}")
+
+	set(${LOADER_VAR} "${library_loader_file}" PARENT_SCOPE)
 endfunction()
 
 
