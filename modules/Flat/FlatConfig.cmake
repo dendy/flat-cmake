@@ -12,6 +12,7 @@ set(Flat_RunWithEnvScriptIn "${CMAKE_CURRENT_LIST_DIR}/run-with-env.py.in")
 set(Flat_CheckGitRevisionScript "${CMAKE_CURRENT_LIST_DIR}/check-git-revision.py")
 set(Flat_EraseCurrentDirScript "${CMAKE_CURRENT_LIST_DIR}/erase-current-dir.py")
 set(Flat_CollectFilesScript "${CMAKE_CURRENT_LIST_DIR}/collect-files.py")
+set(Flat_ReconfigureCMakeScript "${CMAKE_CURRENT_LIST_DIR}/reconfigure-cmake.py")
 
 
 # sources
@@ -883,17 +884,19 @@ endfunction()
 #   ARGS           - CMake variables for configuring the project
 #   GIT_DIRS       - git dirs to check revision update from, when any git dir is changed then
 #                    invoke the build again and touch the BUILD_TARGET_FILE
-#   DEPENDS        - additional file dependencies
+#   DEPENDS        - dependencies to trigger reconfiguration
+#   CLEAN_DEPENDS  - dependencies to trigger full clean build
 
 function(flat_configure_cmake_project TARGET)
 	set(Python_ADDITIONAL_VERSIONS 3.5-32)
 	find_package(PythonInterp 3.5 REQUIRED)
 
-	cmake_parse_arguments(f "" "SOURCE_DIR;BUILD_DIR;GENERATOR;MAKE" "ENV;ENV_PATHS;ARGS;GIT_DIRS;DEPENDS" ${ARGN})
+	cmake_parse_arguments(f "" "SOURCE_DIR;BUILD_DIR;GENERATOR;MAKE" "ENV;ENV_PATHS;ARGS;GIT_DIRS;DEPENDS;CLEAN_DEPENDS" ${ARGN})
 
 	# vars
 	set(build_dir "${f_BUILD_DIR}")
 	set(cmake_build_dir "${build_dir}/build")
+	set(reconfigure_target "${build_dir}/reconfigure")
 	set(build_dir_target "${build_dir}/build-dir")
 
 	# launch
@@ -917,17 +920,19 @@ function(flat_configure_cmake_project TARGET)
 
 	# generator
 	if ( "${generator}" STREQUAL "Ninja" )
-		set(build_file "build.ninja")
+		set(build_file_name "build.ninja")
 		set(build_make "ninja")
 	elseif ( "${generator}" STREQUAL "Unix Makefiles" )
-		set(build_file "Makefile")
+		set(build_file_name "Makefile")
 		set(build_make "make")
 	elseif ( "${generator}" STREQUAL "MinGW Makefiles" )
-		set(build_file "Makefile")
+		set(build_file_name "Makefile")
 		set(build_make "mingw32-make")
 	else()
 		message(FATAL_ERROR "Unsupported generator: ${generator}")
 	endif()
+
+	set(build_file "${cmake_build_dir}/${build_file_name}")
 
 	if ( f_MAKE )
 		set(build_make "${f_MAKE}")
@@ -978,7 +983,7 @@ function(flat_configure_cmake_project TARGET)
 
 	# rule to configure project
 	add_custom_command(
-		OUTPUT "${cmake_build_dir}/${build_file}"
+		OUTPUT "${build_file}"
 		COMMAND "${PYTHON_EXECUTABLE}" "${Flat_EraseCurrentDirScript}"
 		COMMAND "${PYTHON_EXECUTABLE}" "${run_script}" ${CMAKE_COMMAND}
 			-G "${generator}"
@@ -986,7 +991,14 @@ function(flat_configure_cmake_project TARGET)
 			${args}
 			"${f_SOURCE_DIR}"
 		WORKING_DIRECTORY "${cmake_build_dir}"
-		DEPENDS "${build_dir_target}" "${run_script}" ${f_DEPENDS}
+		DEPENDS "${build_dir_target}" "${run_script}" ${f_CLEAN_DEPENDS}
+	)
+
+	add_custom_command(
+		OUTPUT "${reconfigure_target}"
+		COMMAND "${PYTHON_EXECUTABLE}" "${run_script}" "${PYTHON_EXECUTABLE}" "${Flat_ReconfigureCMakeScript}"
+			"${cmake_build_dir}" "${build_file_name}" "${reconfigure_target}" --cmake "${CMAKE_COMMAND}" --deps ${f_DEPENDS}
+		DEPENDS "${build_file}" ${f_DEPENDS}
 	)
 
 	add_custom_target(${TARGET})
@@ -997,7 +1009,7 @@ function(flat_configure_cmake_project TARGET)
 		MAKE "${build_make}"
 		BUILD_DIR "${build_dir}"
 		CMAKE_BUILD_DIR "${cmake_build_dir}"
-		TARGET_FILE "${cmake_build_dir}/${build_file}"
+		RECONFIGURE_TARGET_FILE "${reconfigure_target}"
 	)
 endfunction()
 
@@ -1029,7 +1041,7 @@ function (flat_build_cmake_project TARGET CONFIGURE_TARGET)
 	get_target_property(cmake_build_dir ${CONFIGURE_TARGET} CMAKE_BUILD_DIR)
 	get_target_property(git_targets ${CONFIGURE_TARGET} GIT_TARGETS)
 	get_target_property(git_files ${CONFIGURE_TARGET} GIT_FILES)
-	get_target_property(configure_target_file ${CONFIGURE_TARGET} TARGET_FILE)
+	get_target_property(reconfigure_target ${CONFIGURE_TARGET} RECONFIGURE_TARGET_FILE)
 	set(build_target_file "${build_dir}/target-${TARGET}")
 
 	# rule to build project
@@ -1040,7 +1052,7 @@ function (flat_build_cmake_project TARGET CONFIGURE_TARGET)
 			COMMAND ${CMAKE_COMMAND} -E touch "${build_target_file}"
 			BYPRODUCTS ${f_OUTPUTS}
 			WORKING_DIRECTORY "${cmake_build_dir}"
-			DEPENDS "${configure_target_file}" ${git_files} ${f_DEPENDS}
+			DEPENDS "${reconfigure_target}" ${git_files} ${f_DEPENDS}
 		)
 
 		add_custom_target(${TARGET}
@@ -1051,7 +1063,7 @@ function (flat_build_cmake_project TARGET CONFIGURE_TARGET)
 			COMMAND ${build_make} ${make_opts} ${make_jobs} ${f_TARGETS}
 			BYPRODUCTS ${f_OUTPUTS}
 			WORKING_DIRECTORY "${cmake_build_dir}"
-			DEPENDS "${configure_target_file}" ${f_DEPENDS}
+			DEPENDS "${reconfigure_target}" ${f_DEPENDS}
 		)
 	endif()
 endfunction()
