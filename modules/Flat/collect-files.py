@@ -19,7 +19,7 @@ if __name__ == '__main__':
 			if os.path.isfile(path):
 				files.append(path)
 		else:
-			files += f
+			files += [x for x in f if os.path.isfile(x)]
 
 	buffer = io.StringIO()
 	for file in files:
