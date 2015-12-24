@@ -13,6 +13,7 @@ set(Flat_CheckGitRevisionScript "${CMAKE_CURRENT_LIST_DIR}/check-git-revision.py
 set(Flat_EraseCurrentDirScript "${CMAKE_CURRENT_LIST_DIR}/erase-current-dir.py")
 set(Flat_CollectFilesScript "${CMAKE_CURRENT_LIST_DIR}/collect-files.py")
 set(Flat_ReconfigureCMakeScript "${CMAKE_CURRENT_LIST_DIR}/reconfigure-cmake.py")
+set(Flat_GenerateQrcScript "${CMAKE_CURRENT_LIST_DIR}/generate-qrc.py")
 
 
 # sources
@@ -1093,6 +1094,32 @@ function(flat_collect_files TARGET OUTPUT)
 			"${Flat_CollectFilesScript}"
 		VERBATIM
 	)
+endfunction()
+
+
+function(flat_add_qrc TARGET CPP_FILE_VAR PATH PREFIX)
+	set(files_file "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}_files")
+	set(qrc_file "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.qrc")
+	set(cpp_file "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.cpp")
+
+	flat_collect_files(${TARGET} "${files_file}" ${ARGN})
+
+	add_custom_command(
+		OUTPUT "${qrc_file}"
+		COMMAND "${PYTHON_EXECUTABLE}" "${Flat_GenerateQrcScript}"
+			"${qrc_file}" "${files_file}" "${PATH}" "${PREFIX}"
+		DEPENDS "${files_file}" "${Flat_GenerateQrcScript}"
+		VERBATIM
+	)
+
+	add_custom_command(
+		OUTPUT ${cpp_file}
+		COMMAND ${Qt5Core_RCC_EXECUTABLE} --name ${TARGET} --output ${cpp_file} ${qrc_file}
+		DEPENDS "${qrc_file}"
+		VERBATIM
+	)
+
+	set(${CPP_FILE_VAR} "${cpp_file}" PARENT_SCOPE)
 endfunction()
 
 
