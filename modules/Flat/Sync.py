@@ -39,6 +39,13 @@ class Entry:
 	pass
 
 
+def globSourceBase(source):
+	base, suffix = os.path.split(source)
+	while '*' in base:
+		base, suffix = os.path.split(base)
+	return base
+
+
 class Main:
 	def __init__(self):
 		argParser = argparse.ArgumentParser()
@@ -55,6 +62,83 @@ class Main:
 		self.rsync = self.args.rsync if self.args.rsync else 'rsync'
 
 
+	def isSimplePattern(path):
+		return path.endswith('/') and not '*' in path and not '?' in path
+
+
+	def checkSourceOnce(source, exclude, hasTail):
+		if hasTail:
+			return source != exclude
+		relpath = os.path.relpath(source, exclude)
+		return relpath.startswith('..') or os.path.isabs(relpath)
+
+
+	def checkSource(source, excludeTuples):
+		for (exclude, hasTail) in excludeTuples:
+			if not Main.checkSourceOnce(source, exclude, hasTail):
+				return False
+		return True
+
+
+	def removeExcludes(sources, excludeTuples):
+		s = []
+		for source in sources:
+			if Main.checkSource(source, excludeTuples):
+				s.append(source)
+		return s
+
+
+	def breakSource(source, destination, excludes):
+		excludeTuples = [(e, bool(os.path.basename(e))) for e in excludes]
+
+		destinationHasTail = bool(os.path.basename(destination))
+		sourceHasTail = bool(os.path.basename(source))
+
+		sourcePathsForSuffix = {}
+
+		if destinationHasTail and not sourceHasTail:
+			raise Exception('Invalid source-destination pair:', destination, source,
+					'If source ends with / then destination must also ends with /')
+
+		sourceIsPattern = False
+		sourcePatternIsSimple = False
+
+		if source.endswith('*'):
+			sourceIsPattern = True
+			starsCount = 2 if source.endswith('**') else 1
+			sourceBase = source[:-starsCount]
+			if Main.isSimplePattern(sourceBase):
+				# pass this pattern directly to rsync
+				sourcePatternIsSimple = True
+				sourcePathsForSuffix[destination] = [sourceBase]
+
+		if not sourcePatternIsSimple:
+			if not '*' in source and not '?' in source:
+				sourcePathsForSuffix[destination] = Main.removeExcludes([source], excludeTuples)
+			else:
+				sourceIsPattern = True
+
+				expandedSources = glob.glob(source, recursive=True)
+				expandedSources = Main.removeExcludes([x.replace('\\', '/') for x in expandedSources], excludeTuples)
+
+				sourceBase = globSourceBase(source)
+				for expandedSource in expandedSources:
+					relpath = os.path.relpath(expandedSource, sourceBase)
+					suffix = os.path.dirname(relpath)
+					fullSuffix = os.path.join(destination, suffix)
+					destinationSuffix = fullSuffix + '/' if fullSuffix else ''
+					sourcePaths = sourcePathsForSuffix.get(destinationSuffix)
+					if not sourcePaths:
+						sourcePathsForSuffix[destinationSuffix] = [expandedSource]
+					else:
+						sourcePaths.append(expandedSource)
+
+		if sourceIsPattern and destinationHasTail:
+			raise Exception('Source cannot be pattern:', source, destination)
+
+		return sourcePathsForSuffix
+
+
 	def exec(self):
 		fileSep = '!!fs!!'
 		excludeSep = '!!es!!'
@@ -68,14 +152,25 @@ class Main:
 		self.entries = []
 
 		for i in range(len(source)):
-			entry = Entry()
-			entry.source = source[i]
-			entry.destination = '' if destination[i] == 'ROOT' else destination[i]
-			entry.delete = delete[i] == 'YES'
-			entry.copySymlinks = copySymlinks[i] == 'YES'
-			entry.excludes = [] if excludes[i] == 'NONE' else excludes[i].split(excludeSep)
+			entrySource = source[i]
+			entryDestination = '' if destination[i] == 'ROOT' else destination[i]
+			entryExcludes = [] if excludes[i] == 'NONE' else excludes[i].split(excludeSep)
 
-			self.entries.append(entry)
+			if not entrySource or entrySource == '/':
+				raise Exception('Invalid source:', entrySource)
+
+			sourcePathsForSuffix = Main.breakSource(entrySource, entryDestination, entryExcludes)
+
+			for (suffix, paths) in sourcePathsForSuffix.items():
+				for path in paths:
+					entry = Entry()
+					entry.source = path
+					entry.destination = suffix
+					entry.delete = delete[i] == 'YES'
+					entry.copySymlinks = copySymlinks[i] == 'YES'
+					entry.excludes = entryExcludes
+
+					self.entries.append(entry)
 
 		self.entriesForTarget = {}
 
@@ -97,8 +192,9 @@ class Main:
 			excludes = []
 			for entry in entries:
 				excludes += entry.excludes
-			fullDestination = self.args.destinationRoot + '/' + destination
+			fullDestination = os.path.join(self.args.destinationRoot, destination)
 			self.createDestinationDirs(fullDestination)
+
 			self.sync([e.source for e in entries], fullDestination, entries[0].delete, excludes, copySymlinks)
 
 
@@ -119,30 +215,9 @@ class Main:
 
 
 	def sync(self, sources, destination, delete=False, excludes=[], copySymlinks=False, verbose=False, strict=True):
-		destinationHead, destinationTail = os.path.split(destination)
-
-		sourcePaths = []
+		sourcePaths = sources
 
 		rsyncExcludeArgs = []
-
-		for source in sources:
-			if not source or source == '/':
-				raise Exception('Invalid source:', source)
-			sourceHead, sourceTail = os.path.split(source)
-			if not sourceTail and destinationTail:
-				raise Exception('Invalid source-destination pair:', destination, source,
-						'If source ends with / then destination must also ends with /')
-			expandedSources = glob.glob(source)
-			expandedSources = [x.replace('\\', '/') for x in expandedSources]
-			sourcePaths += expandedSources if len(expandedSources) != 0 else [source];
-
-		if destinationTail:
-			if len(sourcePaths) != 1:
-				raise Exception('More than one source has same destination path:', destination, sourcePaths)
-			sourcePath = sourcePaths[0]
-			if os.path.isdir(sourcePath):
-				sourcePaths = [sourcePath + '/']
-				destination += '/'
 
 		for exclude in excludes:
 			path, isLocal = toCygwinPath(exclude) if sys.platform == 'win32' else (exclude, None)
