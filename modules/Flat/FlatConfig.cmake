@@ -14,6 +14,7 @@ set(Flat_EraseCurrentDirScript "${CMAKE_CURRENT_LIST_DIR}/erase-current-dir.py")
 set(Flat_CollectFilesScript "${CMAKE_CURRENT_LIST_DIR}/collect-files.py")
 set(Flat_ReconfigureCMakeScript "${CMAKE_CURRENT_LIST_DIR}/reconfigure-cmake.py")
 set(Flat_GenerateQrcScript "${CMAKE_CURRENT_LIST_DIR}/generate-qrc.py")
+set(Flat_GenerateQmldirLoaderScript "${CMAKE_CURRENT_LIST_DIR}/generate-qmldir-loader.py")
 
 
 # sources
@@ -1094,6 +1095,32 @@ function(flat_collect_files TARGET OUTPUT)
 			"${Flat_CollectFilesScript}"
 		VERBATIM
 	)
+endfunction()
+
+
+function(flat_add_qmldir_loader QMLDIR_FILE PREFIX LOADER_VAR)
+	cmake_parse_arguments(f "" "" "INCLUDE;EXCLUDE" ${ARGN})
+
+	file(RELATIVE_PATH loader_file "${CMAKE_CURRENT_SOURCE_DIR}" "${QMLDIR_FILE}")
+	string(REPLACE ":" "_" loader_file "${loader_file}")
+	string(REPLACE ".." "__" loader_file "${loader_file}")
+	set(loader_file "${CMAKE_CURRENT_BINARY_DIR}/${loader_file}.cpp")
+
+	add_custom_command(
+		OUTPUT "${loader_file}"
+		COMMAND "${PYTHON_EXECUTABLE}" "${Flat_GenerateQmldirLoaderScript}"
+			--prefix "${PREFIX}"
+			--qmldir "${QMLDIR_FILE}"
+			--loader "${loader_file}"
+			--include ${f_INCLUDE}
+			--exclude ${f_EXCLUDE}
+		DEPENDS
+			"${Flat_GenerateQmldirLoaderScript}"
+			"${QMLDIR_FILE}"
+		VERBATIM
+	)
+
+	set(${LOADER_VAR} "${loader_file}" PARENT_SCOPE)
 endfunction()
 
 
