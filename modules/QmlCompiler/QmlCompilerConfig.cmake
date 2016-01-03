@@ -18,7 +18,7 @@ set(QmlCompiler_FixQtVersionScript "${QmlCompiler_ScriptsDir}/fix-qt-version.py"
 
 
 function(qmlcompiler_add_library TARGET LOADER_VAR)
-	cmake_parse_arguments(f "" "SOURCE_DIR;PREFIX;TARGET" "ENV" ${ARGN})
+	cmake_parse_arguments(f "" "SOURCE_DIR;PREFIX" "ENV" ${ARGN})
 
 	set(build_dir "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}")
 	set(qml_files_target "${build_dir}/qml-files.target")
@@ -78,6 +78,7 @@ function(qmlcompiler_add_library TARGET LOADER_VAR)
 	add_dependencies(${TARGET} ${TARGET}_Archive_Build)
 	set_target_properties(${TARGET} PROPERTIES IMPORTED_LOCATION "${library_output_file}")
 	set_target_properties(${TARGET} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${Qt5Qml_PRIVATE_INCLUDE_DIRS}")
+	set_target_properties(${TARGET} PROPERTIES INTERFACE_LINK_LIBRARIES m)
 
 	set(${LOADER_VAR} "${library_loader_file}" PARENT_SCOPE)
 endfunction()
