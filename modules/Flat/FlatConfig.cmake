@@ -1105,9 +1105,11 @@ function(flat_add_qmldir_loader QMLDIR_FILE PREFIX LOADER_VAR)
 	string(REPLACE ":" "_" loader_file "${loader_file}")
 	string(REPLACE ".." "__" loader_file "${loader_file}")
 	set(loader_file "${CMAKE_CURRENT_BINARY_DIR}/${loader_file}.cpp")
+	get_filename_component(loader_file_dir "${loader_file}" DIRECTORY)
 
 	add_custom_command(
 		OUTPUT "${loader_file}"
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${loader_file_dir}"
 		COMMAND "${PYTHON_EXECUTABLE}" "${Flat_GenerateQmldirLoaderScript}"
 			--prefix "${PREFIX}"
 			--qmldir "${QMLDIR_FILE}"
