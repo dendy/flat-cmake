@@ -548,15 +548,23 @@ function(flat_deploy_qt5 TARGET)
 		set(runtime_dir "lib")
 	endif()
 
+	if ( "${runtime_dir}" STREQUAL "" )
+		set(runtime_destination "")
+	else()
+		set(runtime_destination "${runtime_dir}/")
+	endif()
+
 	if ( "${qt5_system}" STREQUAL "Windows" )
 		set(qt_libexec_var QT_INSTALL_LIBEXECS)
 	else()
 		set(qt_libexec_var QT_INSTALL_LIBS)
 	endif()
 	execute_process(COMMAND "${qmake_location}" "-query" "${qt_libexec_var}" OUTPUT_VARIABLE qt5_libexecs_dir)
+	execute_process(COMMAND "${qmake_location}" "-query" "QT_INSTALL_LIBS" OUTPUT_VARIABLE qt5_libs_dir)
 	execute_process(COMMAND "${qmake_location}" "-query" "QT_INSTALL_PLUGINS" OUTPUT_VARIABLE qt5_plugins_dir)
 	execute_process(COMMAND "${qmake_location}" "-query" "QT_INSTALL_QML" OUTPUT_VARIABLE qt5_qml_dir)
 	string(STRIP "${qt5_libexecs_dir}" qt5_libexecs_dir)
+	string(STRIP "${qt5_libs_dir}" qt5_libs_dir)
 	string(STRIP "${qt5_plugins_dir}" qt5_plugins_dir)
 	string(STRIP "${qt5_qml_dir}" qt5_qml_dir)
 
@@ -661,12 +669,12 @@ function(flat_deploy_qt5 TARGET)
 
 	# runtime libs
 	foreach ( runtime_lib ${runtime_libs} )
-		flat_sync(${runtime_target} "${runtime_lib}" COPY_SYMLINKS DESTINATION "${runtime_dir}/")
+		flat_sync(${runtime_target} "${runtime_lib}" COPY_SYMLINKS DESTINATION "${runtime_destination}")
 	endforeach()
 
 	# Qt5 libs
 	foreach ( module ${f_MODULES} )
-		flat_sync(${runtime_target} "${qt5_libexecs_dir}/${lib_prefix}Qt5${module}${build_type_suffix}${qt5_lib_suffix}" COPY_SYMLINKS DESTINATION "${runtime_dir}/")
+		flat_sync(${runtime_target} "${qt5_libexecs_dir}/${lib_prefix}Qt5${module}${build_type_suffix}${qt5_lib_suffix}" COPY_SYMLINKS DESTINATION "${runtime_destination}")
 	endforeach()
 
 	# Qt5 plugins
@@ -719,7 +727,9 @@ function(flat_deploy_qt5 TARGET)
 	endforeach()
 
 	if ( "${f_FONTS}" STREQUAL "ALL" )
-		flat_sync("${share_target}" "${qt5_libexecs_dir}/fonts/" DESTINATION "lib/fonts/")
+		if ( EXISTS "${qt5_libs_dir}/fonts" )
+			flat_sync("${share_target}" "${qt5_libs_dir}/fonts/" DESTINATION "lib/fonts/")
+		endif()
 	endif()
 endfunction()
 
