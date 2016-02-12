@@ -78,6 +78,7 @@ add_custom_command(
 		--rcc "${RCC_EXECUTABLE}"
 		--output "${loader_cpp_file}"
 		--qrc "${qrc_file}"
+		--version "${Qt5_VERSION}"
 	DEPENDS
 		"${GENERATE_QML_LOADER_SCRIPT}"
 		"${qrc_file}"

@@ -16,9 +16,7 @@ if __name__ == '__main__':
 	for number in args.version.split('.'):
 		version += '{0:02x}'.format(int(number))
 
-	is56 = False
-	if args.version.startswith('5.6'):
-		is56 = True
+	is56 = args.version.startswith('5.6')
 
 	buffer = io.StringIO()
 
