@@ -87,4 +87,8 @@ if __name__ == '__main__':
 				for line in f:
 					if line == 'QT_PREPEND_NAMESPACE(qRegisterResourceData)(/*version*/0x01, qt_resource_tree, qt_resource_names, qt_resource_empty_payout);\n':
 						line = 'QT_PREPEND_NAMESPACE(qRegisterResourceData)(/*version*/0x01, __fixed_qt_resource::tree, __fixed_qt_resource::name, qt_resource_empty_payout);\n'
+					elif line == '#include <private/qv4value_inl_p.h>\n':
+						line = '#include <private/qv4value_p.h>\n'
+					else:
+						line = line.replace('document->javaScriptCompilationUnit.take', 'document->javaScriptCompilationUnit.adopt')
 					fw.write(line)

@@ -14,7 +14,7 @@ find_package(PythonInterp 3.5 REQUIRED)
 set(QmlCompiler_ScriptsDir "${CMAKE_CURRENT_LIST_DIR}")
 set(QmlCompiler_LibraryProjectDir "${CMAKE_CURRENT_LIST_DIR}/library")
 set(QmlCompiler_GenerateQmlLoaderScript "${QmlCompiler_ScriptsDir}/generate-qml-loader.py")
-set(QmlCompiler_FixQtVersionScript "${QmlCompiler_ScriptsDir}/fix-qt-version.py")
+set(QmlCompiler_FixCppScript "${QmlCompiler_ScriptsDir}/fix-cpp.py")
 
 
 function(qmlcompiler_add_library TARGET LOADER_VAR)
@@ -59,7 +59,7 @@ function(qmlcompiler_add_library TARGET LOADER_VAR)
 			QML_FILES_TARGET "${qml_files_target}"
 			QML_SOURCE_DIR "${f_SOURCE_DIR}"
 			GENERATE_QML_LOADER_SCRIPT "${QmlCompiler_GenerateQmlLoaderScript}"
-			FIX_QT_VERSION_SCRIPT "${QmlCompiler_FixQtVersionScript}"
+			FIX_CPP_SCRIPT "${QmlCompiler_FixCppScript}"
 		DEPENDS
 			"${qml_files_target}"
 	)

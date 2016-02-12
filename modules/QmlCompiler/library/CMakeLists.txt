@@ -36,7 +36,7 @@ file(WRITE "${qrc_file}" "<RCC>\n\t<qresource${prefix}>\n${qrc_entries}\t</qreso
 set(cpp_files)
 
 set(QML_SOURCE_DIR "" CACHE PATH "")
-set(FIX_QT_VERSION_SCRIPT "" CACHE FILEPATH "")
+set(FIX_CPP_SCRIPT "" CACHE FILEPATH "")
 
 foreach ( qml_file ${qml_files} )
 	file(RELATIVE_PATH relative_qml_file "${QML_SOURCE_DIR}" "${qml_file}")
@@ -58,12 +58,13 @@ foreach ( qml_file ${qml_files} )
 			"--resource=${qrc_file}"
 			"${qml_file}"
 			"${unfixed_cpp_file}"
-		COMMAND "${PYTHON_EXECUTABLE}" "${FIX_QT_VERSION_SCRIPT}"
+		COMMAND "${PYTHON_EXECUTABLE}" "${FIX_CPP_SCRIPT}"
 			--input "${unfixed_cpp_file}"
 			--output "${cpp_file}"
 			--version "${Qt5_VERSION}"
 		DEPENDS
 			"${qml_file}"
+			"${FIX_CPP_SCRIPT}"
 	)
 endforeach()
 
