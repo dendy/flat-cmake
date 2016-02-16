@@ -1000,6 +1000,8 @@ function(flat_configure_cmake_project TARGET)
 		COMMAND "${PYTHON_EXECUTABLE}" "${run_script}" ${CMAKE_COMMAND}
 			-G "${generator}"
 			-D "CMAKE_MAKE_PROGRAM=${build_make}"
+			-D "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}"
+			-D "OE_QMAKE_PATH_EXTERNAL_HOST_BINS=${OE_QMAKE_PATH_EXTERNAL_HOST_BINS}"
 			${args}
 			"${f_SOURCE_DIR}"
 		WORKING_DIRECTORY "${cmake_build_dir}"

@@ -37,6 +37,11 @@ function(qmlcompiler_add_library TARGET LOADER_VAR)
 		set(toolchain_args)
 	endif()
 
+	set(cmake_args)
+	if ( CMAKE_AR )
+		list(APPEND cmake_args CMAKE_AR "${CMAKE_AR}")
+	endif()
+
 	if ( QmlCompiler_Executable )
 		set(qml_compiler_executable "${QmlCompiler_Executable}")
 	else()
@@ -56,6 +61,7 @@ function(qmlcompiler_add_library TARGET LOADER_VAR)
 			RCC_EXECUTABLE "${rcc_executable}"
 			${prefix_args}
 			${toolchain_args}
+			${cmake_args}
 			QML_FILES_TARGET "${qml_files_target}"
 			QML_SOURCE_DIR "${f_SOURCE_DIR}"
 			GENERATE_QML_LOADER_SCRIPT "${QmlCompiler_GenerateQmlLoaderScript}"
