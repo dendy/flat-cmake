@@ -5,7 +5,7 @@ include("${JavaTools_SCRIPT_DIR}/JavaToolsUtil.cmake")
 
 
 # create output directory
-java_tools_create_file_directory("${SIGNED_PACKAGE_TARGET}")
+flat_create_file_directory("${SIGNED_PACKAGE_TARGET}")
 
 
 # verbose flags

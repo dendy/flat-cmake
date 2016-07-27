@@ -8,7 +8,7 @@ set(_need_update NO)
 set(_force_update YES)
 
 
-java_tools_create_file_directory("${TARGET_FILE}")
+flat_create_file_directory("${TARGET_FILE}")
 
 
 # source dirs

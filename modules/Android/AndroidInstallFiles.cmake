@@ -5,7 +5,7 @@ include( "${Android_SCRIPT_DIR}/AndroidUtil.cmake" )
 
 
 # create output directory
-android_create_file_directory( "${INSTALL_TARGET}" )
+flat_create_file_directory( "${INSTALL_TARGET}" )
 
 
 # signature

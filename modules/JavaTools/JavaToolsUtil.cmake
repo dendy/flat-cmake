@@ -2,6 +2,8 @@
 include(CMakeParseArguments)
 
 
+include("${Flat_ScriptsDir}/Utils.cmake")
+
 
 
 #set(JavaTools_SCRIPT_DEBUG YES)
@@ -12,22 +14,6 @@ include(CMakeParseArguments)
 function(java_tools_debug_message MESSAGE)
 	if ( JavaTools_SCRIPT_DEBUG )
 		message("======== JavaTools Debug: ${MESSAGE}")
-	endif()
-endfunction()
-
-
-
-
-function( java_tools_create_file_directory FILE )
-	get_filename_component(_dir "${FILE}" PATH)
-
-	execute_process(
-		COMMAND "${CMAKE_COMMAND}" -E make_directory "${_dir}"
-		RESULT_VARIABLE _result
-	)
-
-	if ( NOT _result EQUAL 0 )
-		message(FATAL_ERROR "Error creating directory: ${_dir}")
 	endif()
 endfunction()
 
@@ -107,7 +93,7 @@ endfunction()
 function(java_tools_generate_source_files_target TARGET_FILE)
 	cmake_parse_arguments(_jt "" "" "SOURCE_DIRS;SOURCE_FILES;EXCLUDES;FILTERS" ${ARGN})
 
-	java_tools_create_file_directory("${TARGET_FILE}")
+	flat_create_file_directory("${TARGET_FILE}")
 
 	# load previous target file
 	set(_previous_target_file_found NO)

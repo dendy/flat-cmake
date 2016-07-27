@@ -52,5 +52,5 @@ file( GLOB_RECURSE _r_java_files "${GEN_DIR}/${_package_path}/*.java" )
 
 
 # generate target file
-android_create_file_directory( "${RESOURCE_JAVA_FILES_TARGET}" )
+flat_create_file_directory( "${RESOURCE_JAVA_FILES_TARGET}" )
 file( WRITE "${RESOURCE_JAVA_FILES_TARGET}" "${_r_java_files}" )

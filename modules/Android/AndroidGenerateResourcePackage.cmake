@@ -5,8 +5,8 @@ include( "${Android_SCRIPT_DIR}/AndroidUtil.cmake" )
 
 
 # make output directories
-android_create_file_directory( "${RESOURCE_PACKAGE_FILE}" )
-android_create_file_directory( "${RESOURCE_PACKAGE_TARGET}" )
+flat_create_file_directory( "${RESOURCE_PACKAGE_FILE}" )
+flat_create_file_directory( "${RESOURCE_PACKAGE_TARGET}" )
 
 
 set( _aapt_verbose_flags )

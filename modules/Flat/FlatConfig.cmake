@@ -7,6 +7,7 @@ find_package(PythonCompiler REQUIRED)
 
 
 # scripts
+set(Flat_ScriptsDir "${CMAKE_CURRENT_LIST_DIR}")
 set(Flat_SyncScript "${CMAKE_CURRENT_LIST_DIR}/Sync.py")
 set(Flat_RunWithEnvScriptIn "${CMAKE_CURRENT_LIST_DIR}/run-with-env.py.in")
 set(Flat_CheckGitRevisionScript "${CMAKE_CURRENT_LIST_DIR}/check-git-revision.py")
@@ -19,6 +20,10 @@ set(Flat_CheckPchDepsScript "${CMAKE_CURRENT_LIST_DIR}/check-pch-deps.py")
 set(Flat_GeneratePchFlagsScript "${CMAKE_CURRENT_LIST_DIR}/generate-pch-flags.py")
 set(Flat_GeneratePchDepsScript "${CMAKE_CURRENT_LIST_DIR}/generate-pch-deps.py")
 set(Flat_GeneratePchScript "${CMAKE_CURRENT_LIST_DIR}/generate-pch.py")
+
+
+# utils
+include("${Flat_ScriptsDir}/Utils.cmake")
 
 
 # sources
@@ -1140,20 +1145,6 @@ function (flat_build_cmake_project TARGET CONFIGURE_TARGET)
 			WORKING_DIRECTORY "${cmake_build_dir}"
 			DEPENDS "${reconfigure_target}" ${f_DEPENDS}
 		)
-	endif()
-endfunction()
-
-
-function(flat_create_file_directory FILE)
-	get_filename_component(dir "${FILE}" PATH)
-
-	execute_process(
-		COMMAND ${CMAKE_COMMAND} -E make_directory "${dir}"
-		RESULT_VARIABLE result
-	)
-
-	if ( NOT ${result} EQUAL 0 )
-		message(FATAL_ERROR "Error creating directory: ${dir}")
 	endif()
 endfunction()
 

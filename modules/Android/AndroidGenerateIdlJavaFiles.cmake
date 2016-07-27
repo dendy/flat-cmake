@@ -78,5 +78,5 @@ endforeach()
 
 
 # generate target file
-android_create_file_directory("${IDL_JAVA_FILES_TARGET}")
+flat_create_file_directory("${IDL_JAVA_FILES_TARGET}")
 file(WRITE "${IDL_JAVA_FILES_TARGET}" "${_idl_java_files}")

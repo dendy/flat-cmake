@@ -2,6 +2,7 @@
 set( Android_FOUND NO )
 
 
+find_package(Flat REQUIRED)
 find_package(JavaTools REQUIRED)
 
 
@@ -16,10 +17,6 @@ if ( NOT Android_TOOLCHAIN_ROOT )
 	set(Android_TOOLCHAIN_ROOT "${_android_toolchain_root}" CACHE PATH "" FORCE)
 endif()
 mark_as_advanced(Android_TOOLCHAIN_ROOT)
-
-
-# java
-find_package(JavaTools REQUIRED)
 
 
 # keytool
@@ -312,6 +309,7 @@ function(android_add_package TARGET)
 			-D "MANIFEST_FILE=${_manifest_file}"
 			-D "PACKAGE_NAME_FILE=${_manifest_package_name_file}"
 			-D "Java_JAVA_EXECUTABLE=${JavaTools_JAVA_EXECUTABLE}"
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
 			-D "Android_SAXON_PACKAGE=${Android_SAXON_PACKAGE}"
 			-P "${Android_EXTRACT_PACKAGE_NAME_SCRIPT}"
@@ -327,6 +325,7 @@ function(android_add_package TARGET)
 			-D "PACKAGE_NAME_FILE=${_manifest_package_name_file}"
 			-D "RESOURCE_SOURCE_FILES_TARGET=${_resource_source_files_target}"
 			-D "RESOURCE_PACKAGE_FILES_TARGET=${_resource_package_files_target}"
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
 			-P "${Android_GENERATE_RESOURCE_SOURCE_FILES_TARGET_SCRIPT}"
 		BYPRODUCTS
@@ -345,6 +344,7 @@ function(android_add_package TARGET)
 			-D "SRC_DIRS=${_src_dirs}"
 			-D "PACKAGE_NAME_FILE=${_manifest_package_name_file}"
 			-D "IDL_SOURCE_FILES_TARGET=${_idl_source_files_target}"
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "JavaTools_SCRIPT_DIR=${JavaTools_SCRIPT_DIR}"
 			-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
 			-P "${Android_GENERATE_IDL_SOURCE_FILES_TARGET_SCRIPT}"
@@ -361,6 +361,7 @@ function(android_add_package TARGET)
 		COMMAND "${CMAKE_COMMAND}"
 			-D "LIB_DIRS=${_lib_dirs}"
 			-D "TARGET_FILE=${_jni_libraries_target}"
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "JavaTools_SCRIPT_DIR=${JavaTools_SCRIPT_DIR}"
 			-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
 			-P "${Android_GENERATE_JNI_LIBRARIES_TARGET_SCRIPT}"
@@ -382,6 +383,7 @@ function(android_add_package TARGET)
 			-D "MANIFEST_FILE=${_manifest_file}"
 			-D "RESOURCE_JAVA_FILES_TARGET=${_resource_java_files_target}"
 			-D "TARGET_PLATFORM=${_android_TARGET_PLATFORM}"
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
 			-D "Android_PLATFORMS_DIR=${Android_PLATFORMS_DIR}"
 			-D "Android_AAPT_COMMAND=${Android_AAPT_COMMAND}"
@@ -405,6 +407,7 @@ function(android_add_package TARGET)
 			-D "IDL_JAVA_FILES_TARGET=${_idl_java_files_target}"
 			-D "TARGET_PLATFORM=${_android_TARGET_PLATFORM}"
 			-D "Android_SDK_ROOT=${Android_SDK_ROOT}"
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
 			-D "Android_PLATFORMS_DIR=${Android_PLATFORMS_DIR}"
 			-D "Android_AIDL_COMMAND=${Android_AIDL_COMMAND}"
@@ -443,6 +446,7 @@ function(android_add_package TARGET)
 			-D "JAR_FILES=${_jar_files}"
 			-D "DEX_FILE=${_dex_file}"
 			-D "Android_DX_COMMAND=${Android_DX_COMMAND}"
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
 			-P "${Android_GENERATE_DEX_FILES_SCRIPT}"
 		DEPENDS
@@ -478,6 +482,7 @@ function(android_add_package TARGET)
 			-D "TARGET_PLATFORM=${_android_TARGET_PLATFORM}"
 			-D "RESOURCE_PACKAGE_FILE=${_resource_package_file}"
 			-D "RESOURCE_PACKAGE_TARGET=${_resource_package_target}"
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
 			-D "Android_PLATFORMS_DIR=${Android_PLATFORMS_DIR}"
 			-D "Android_AAPT_COMMAND=${Android_AAPT_COMMAND}"
@@ -495,6 +500,7 @@ function(android_add_package TARGET)
 		COMMAND "${CMAKE_COMMAND}"
 			-D "ASSETS_DIRS=${_no_compress_assets_dirs}"
 			-D "TARGET_FILE=${_no_compress_assets_source_files_target}"
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "JavaTools_SCRIPT_DIR=${JavaTools_SCRIPT_DIR}"
 			-P "${Android_GENERATE_ASSETS_SOURCE_FILES_TARGET}"
 		BYPRODUCTS
@@ -529,6 +535,7 @@ function(android_add_package TARGET)
 			-D "PACKAGE_FILE=${_unsigned_package_file}"
 			-D "PACKAGE_TARGET=${_unsigned_package_target}"
 			-D "Java_JAVA_EXECUTABLE=${JavaTools_JAVA_EXECUTABLE}"
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
 			-D "Android_SDKLIB_JAR=${Android_SDKLIB_JAR}"
 			-P "${Android_GENERATE_APK_PACKAGE_SCRIPT}"
@@ -552,6 +559,7 @@ function(android_add_package TARGET)
 			-D "UNSIGNED_PACKAGE_FILE=${_unsigned_package_file}"
 			-D "SIGNED_PACKAGE_FILE=${_package_file}"
 			-D "SIGNED_PACKAGE_TARGET=${_signed_package_target}"
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
 			-D "Android_JARSIGNER_COMMAND=${JavaTools_JARSIGNER_COMMAND}"
 			-P "${Android_GENERATE_SIGNED_PACKAGE_SCRIPT}"
@@ -671,6 +679,7 @@ macro( android_add_jni_project TARGET PROJECT_PATH )
 			-D "PROPERTIES=${_columned_properties}"
 			-D "Android_SDK_ROOT=${Android_SDK_ROOT}"
 			-D "Android_TOOLCHAIN_ROOT=${Android_TOOLCHAIN_ROOT}"
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
 			-D "Android_VARIABLES_FILE_NAME=${Android_VARIABLES_FILE_NAME}"
 			-P "${Android_CONFIGURE_JNI_PROJECT_SCRIPT}"
@@ -738,6 +747,7 @@ macro( android_add_push TARGET )
 					-D "PUSH_SOURCE=${_source}"
 					-D "PUSH_DESTINATION=${_destination}"
 					-D "PUSH_TARGET=${_target}"
+					-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 					-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
 					-D "Android_ADB_COMMAND=${Android_ADB_COMMAND}"
 					-P "${Android_PUSH_FILES_SCRIPT}"
@@ -829,6 +839,7 @@ macro( android_add_install TARGET APK )
 			-D "SERIAL_NUMBER=${_serial_number}"
 			-D "APK=${APK}"
 			-D "INSTALL_TARGET=${_target}"
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
 			-D "Android_ADB_COMMAND=${Android_ADB_COMMAND}"
 			-P "${Android_INSTALL_FILES_SCRIPT}"

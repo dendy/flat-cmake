@@ -5,7 +5,7 @@ include("${Android_SCRIPT_DIR}/AndroidUtil.cmake")
 
 
 # make output directory
-android_create_file_directory("${DEX_FILE}")
+flat_create_file_directory("${DEX_FILE}")
 
 
 set(_dx_debug_flags)

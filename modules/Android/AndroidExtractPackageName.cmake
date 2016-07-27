@@ -14,7 +14,7 @@ include("${Android_SCRIPT_DIR}/AndroidUtil.cmake")
 
 
 # make output directory
-android_create_file_directory("${PACKAGE_NAME_FILE}")
+flat_create_file_directory("${PACKAGE_NAME_FILE}")
 
 
 if ( UseSaxon )

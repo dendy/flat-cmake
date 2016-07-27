@@ -19,7 +19,7 @@ string(REPLACE "." "/" _package_path "${_package_name}")
 
 
 # create output directory
-android_create_file_directory("${RESOURCE_SOURCE_FILES_TARGET}")
+flat_create_file_directory("${RESOURCE_SOURCE_FILES_TARGET}")
 
 
 # collect all directories

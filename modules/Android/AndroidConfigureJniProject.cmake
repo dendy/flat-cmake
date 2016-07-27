@@ -13,7 +13,7 @@ get_filename_component( _target_dir "${TARGET_CMAKECACHE_FILE}" PATH )
 
 
 # make output directory
-android_create_file_directory( "${TARGET_CMAKECACHE_FILE}" )
+flat_create_file_directory( "${TARGET_CMAKECACHE_FILE}" )
 
 
 # resolve variables

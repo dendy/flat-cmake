@@ -2,6 +2,9 @@
 #set(Android_SCRIPT_DEBUG YES)
 
 
+include("${Flat_ScriptsDir}/Utils.cmake")
+
+
 
 
 macro( android_debug_message MESSAGE )
@@ -9,24 +12,6 @@ macro( android_debug_message MESSAGE )
 		message( "======== Android Debug: ${MESSAGE}" )
 	endif()
 endmacro()
-
-
-
-
-function( android_create_file_directory FILE )
-
-	get_filename_component( _dir "${FILE}" PATH )
-
-	execute_process(
-		COMMAND "${CMAKE_COMMAND}" -E make_directory "${_dir}"
-		RESULT_VARIABLE _result
-	)
-
-	if ( NOT _result EQUAL 0 )
-		message( FATAL_ERROR "Error creating directory: ${_dir}" )
-	endif()
-
-endfunction()
 
 
 
@@ -107,7 +92,7 @@ macro( android_save_cache FILE )
 	endforeach()
 	unset( _arg )
 
-	android_create_file_directory( "${FILE}" )
+	flat_create_file_directory( "${FILE}" )
 	file( WRITE "${FILE}" "${_contents}" )
 	unset( _contents )
 endmacro()
@@ -127,7 +112,7 @@ macro( android_save_variables FILE )
 	unset( _var )
 	unset( _value )
 
-	android_create_file_directory( "${FILE}" )
+	flat_create_file_directory( "${FILE}" )
 	file( WRITE "${FILE}" "${_contents}" )
 	unset( _contents )
 endmacro()

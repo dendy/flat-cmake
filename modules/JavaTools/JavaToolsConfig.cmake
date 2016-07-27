@@ -1,4 +1,7 @@
 
+# packages
+find_package(Flat REQUIRED)
+
 # helper scripts
 get_filename_component(scripts_dir "${CMAKE_CURRENT_LIST_FILE}" PATH)
 
@@ -105,6 +108,7 @@ function(java_tools_compile_java TARGET)
 		COMMAND "${CMAKE_COMMAND}"
 			-D "SRC_DIRS=${_src_dirs}"
 			-D "JAVA_SOURCE_FILES_TARGET=${_java_source_files_target}"
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "JavaTools_SCRIPT_DIR=${JavaTools_SCRIPT_DIR}"
 			-P "${JavaTools_GENERATE_JAVA_SOURCE_FILES_TARGET_SCRIPT}"
 		BYPRODUCTS
@@ -127,6 +131,7 @@ function(java_tools_compile_java TARGET)
 			-D "JAVA_SOURCE_PATH=${_src_dirs}"
 			-D "Java_JAVAC_EXECUTABLE=${JavaTools_JAVAC_EXECUTABLE}"
 			-D "JAVA_CLASS_FILES_TARGET=${_java_class_files_target}"
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "JavaTools_SCRIPT_DIR=${JavaTools_SCRIPT_DIR}"
 			-P "${JavaTools_GENERATE_JAVA_CLASS_FILES_SCRIPT}"
 		DEPENDS
@@ -220,6 +225,7 @@ function(java_tools_add_package TARGET)
 		COMMAND "${CMAKE_COMMAND}"
 			-D "SRC_DIRS=${_src_dir}"
 			-D "JAVA_SOURCE_FILES_TARGET=${_java_source_files_target}"
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "JavaTools_SCRIPT_DIR=${JavaTools_SCRIPT_DIR}"
 			-P "${JavaTools_GENERATE_JAVA_SOURCE_FILES_TARGET_SCRIPT}"
 		BYPRODUCTS "${_java_source_files_target}"
@@ -240,6 +246,7 @@ function(java_tools_add_package TARGET)
 			-D "JAVA_SOURCE_PATH=${_src_dir}"
 			-D "Java_JAVAC_EXECUTABLE=${JavaTools_JAVAC_EXECUTABLE}"
 			-D "JAVA_CLASS_FILES_TARGET=${_java_class_files_target}"
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "JavaTools_SCRIPT_DIR=${JavaTools_SCRIPT_DIR}"
 			-P "${JavaTools_GENERATE_JAVA_CLASS_FILES_SCRIPT}"
 		DEPENDS
@@ -258,6 +265,7 @@ function(java_tools_add_package TARGET)
 			-D "PACKAGE_TARGET=${_package_target}"
 			-D "Java_JAVA_EXECUTABLE=${Java_JAVA_EXECUTABLE}"
 			-D "JavaTools_JAR_EXECUTABLE=${JavaTools_JAR_EXECUTABLE}"
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "JavaTools_SCRIPT_DIR=${JavaTools_SCRIPT_DIR}"
 			-P "${JavaTools_GENERATE_JAR_PACKAGE_SCRIPT}"
 		DEPENDS
@@ -280,6 +288,7 @@ function(java_tools_add_package TARGET)
 				-D "KEYPASS=?"
 				-D "ALIAS=?"
 				-D "SIGNED_PACKAGE_TARGET=${_signed_package_target}"
+				-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 				-D "JavaTools_SCRIPT_DIR=${JavaTools_SCRIPT_DIR}"
 				-D "JavaTools_JARSIGNER_COMMAND=${JavaTools_JARSIGNER_COMMAND}"
 				-P "${JavaTools_GENERATE_SIGNED_PACKAGE_SCRIPT}"

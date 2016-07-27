@@ -55,6 +55,7 @@ function(necessitas_add_assets TARGET)
 	# rule to collect source files
 	add_custom_target(${TARGET}_SourceFiles
 		COMMAND ${CMAKE_COMMAND}
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "JavaTools_SCRIPT_DIR=${JavaTools_SCRIPT_DIR}"
 			-D "SRC_DIRS=${_src_dirs}"
 			-D "SRC_FILES=${_src_files}"
@@ -71,6 +72,7 @@ function(necessitas_add_assets TARGET)
 	# rule to copy assets
 	add_custom_command(OUTPUT "${_plain_assets_target_file}"
 		COMMAND ${CMAKE_COMMAND}
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "JavaTools_SCRIPT_DIR=${JavaTools_SCRIPT_DIR}"
 			-D "SOURCE_FILES_TARGET_FILE=${_source_files_target_file}"
 			-D "SRC_DIRS=${_src_dirs}"
@@ -123,6 +125,7 @@ function(necessitas_add_libs TARGET LOCATION)
 
 	add_custom_target(${TARGET}
 		COMMAND ${CMAKE_COMMAND}
+			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "JavaTools_SCRIPT_DIR=${JavaTools_SCRIPT_DIR}"
 			-D "Necessitas_ScriptsDir=${Necessitas_ScriptsDir}"
 			-D "LOCATION=${LOCATION}"
