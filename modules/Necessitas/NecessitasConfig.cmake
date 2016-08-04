@@ -5,12 +5,16 @@ set(Necessitas_FOUND NO)
 find_package(Android REQUIRED)
 find_package(JavaTools REQUIRED)
 
+set(Python_ADDITIONAL_VERSIONS 3.5-32)
+find_package(PythonInterp 3.5 REQUIRED)
+
 
 include(CMakeParseArguments)
 
 
 set(Necessitas_ScriptsDir "${CMAKE_CURRENT_LIST_DIR}")
 
+set(Necessitas_GenerateAndroidManifestScript "${Necessitas_ScriptsDir}/generate-android-manifest.py")
 set(Necessitas_GenerateSourceFilesTargetScript "${Necessitas_ScriptsDir}/NecessitasGenerateSourceFilesTarget.cmake")
 set(Necessitas_GeneratePlainAssetsScript "${Necessitas_ScriptsDir}/NecessitasGeneratePlainAssets.cmake")
 set(Necessitas_GenerateLibsScript "${Necessitas_ScriptsDir}/NecessitasGenerateLibs.cmake")
@@ -171,5 +175,38 @@ function(necessitas_add_deploy_qt_target TARGET)
 			-D "Android_SAXON_PACKAGE=${Android_SAXON_PACKAGE}"
 			-P "${Necessitas_DeployQtScript}"
 		USES_TERMINAL
+	)
+endfunction()
+
+
+function(necessitas_configure_manifest MANIFEST OUTPUT)
+	cmake_parse_arguments(a "" "MAIN" "QT_MODULES" ${ARGN})
+
+	find_package(Qt5 REQUIRED Core)
+
+	get_target_property(qmake_location Qt5::qmake IMPORTED_LOCATION)
+	execute_process(COMMAND "${qmake_location}" "-query" "QT_INSTALL_LIBS" OUTPUT_VARIABLE qt5_libs_dir)
+	string(STRIP "${qt5_libs_dir}" qt5_libs_dir)
+
+	set(args)
+
+	if ( a_MAIN )
+		list(APPEND args "--main=${a_MAIN}")
+	endif()
+
+	foreach ( qt_module ${a_QT_MODULES} )
+		list(APPEND args "--qt-module=${qt_module}")
+	endforeach()
+
+	add_custom_command(
+		OUTPUT "${OUTPUT}"
+		COMMAND ${PYTHON_EXECUTABLE} "${Necessitas_GenerateAndroidManifestScript}"
+			"--manifest=${MANIFEST}"
+			"--output=${OUTPUT}"
+			"--qt-libs-dir=${qt5_libs_dir}"
+			${args}
+		DEPENDS
+			"${Necessitas_GenerateAndroidManifestScript}"
+			"${MANIFEST}"
 	)
 endfunction()
