@@ -28,15 +28,6 @@ endif()
 mark_as_advanced(FORCE Android_KEYTOOL_COMMAND)
 
 
-# saxon
-find_file(Android_SAXON_PACKAGE "saxon9.jar" PATHS "/usr/share/java" CMAKE_FIND_ROOT_PATH_BOTH)
-if ( NOT Android_SAXON_PACKAGE )
-	mark_as_advanced(CLEAR Android_SAXON_PACKAGE)
-	message(FATAL_ERROR "Cannot find saxon9.jar")
-endif()
-mark_as_advanced(FORCE Android_SAXON_PACKAGE)
-
-
 # SDK
 if ( NOT Android_SDK_ROOT )
 	set(_android_sdk_root "$ENV{ANDROID_SDK_ROOT}")
@@ -100,43 +91,29 @@ mark_as_advanced(Android_VARIABLES_FILE_NAME Android_JNI_LIBRARY_OUTPUT_DIRECTOR
 
 
 # helper scripts
-get_filename_component(_android_script_dir "${CMAKE_CURRENT_LIST_FILE}" PATH)
+function(__android_setup)
+	get_filename_component(dir "${CMAKE_CURRENT_LIST_FILE}" PATH)
 
-set(Android_SCRIPT_DIR "${_android_script_dir}" CACHE PATH "" FORCE)
-set(Android_EXTRACT_PACKAGE_NAME_SCRIPT "${_android_script_dir}/AndroidExtractPackageName.cmake" CACHE FILEPATH "" FORCE)
-set(Android_GENERATE_RESOURCE_SOURCE_FILES_TARGET_SCRIPT "${_android_script_dir}/AndroidGenerateResourceSourceFilesTarget.cmake" CACHE FILEPATH "" FORCE)
-set(Android_GENERATE_IDL_SOURCE_FILES_TARGET_SCRIPT "${_android_script_dir}/AndroidGenerateIdlSourceFilesTarget.cmake" CACHE FILEPATH "" FORCE)
-set(Android_GENERATE_JNI_LIBRARIES_TARGET_SCRIPT "${_android_script_dir}/AndroidGenerateJniLibrariesTarget.cmake" CACHE FILEPATH "" FORCE)
-set(Android_GENERATE_R_JAVA_FILE_SCRIPT "${_android_script_dir}/AndroidGenerateRJavaFile.cmake" CACHE FILEPATH "" FORCE)
-set(Android_GENERATE_IDL_JAVA_FILES_SCRIPT "${_android_script_dir}/AndroidGenerateIdlJavaFiles.cmake" CACHE FILEPATH "" FORCE)
-set(Android_GENERATE_RESOURCE_PACKAGE_SCRIPT "${_android_script_dir}/AndroidGenerateResourcePackage.cmake" CACHE FILEPATH "" FORCE)
-set(Android_GENERATE_DEX_FILES_SCRIPT "${_android_script_dir}/AndroidGenerateDexFiles.cmake" CACHE FILEPATH "" FORCE)
-set(Android_GENERATE_APK_PACKAGE_SCRIPT "${_android_script_dir}/AndroidGenerateApkPackage.cmake" CACHE FILEPATH "" FORCE)
-set(Android_GENERATE_SIGNED_PACKAGE_SCRIPT "${_android_script_dir}/AndroidGenerateSignedPackage.cmake" CACHE FILEPATH "" FORCE)
-set(Android_GENERATE_ASSETS_SOURCE_FILES_TARGET "${_android_script_dir}/AndroidGenerateAssetsSourceFilesTarget.cmake" CACHE FILEPATH "" FORCE)
-set(Android_GENERATE_NO_COMPRESS_ASSETS_JARS_SCRIPT "${_android_script_dir}/AndroidGenerateNoCompressAssetsJars.cmake" CACHE FILEPATH "" FORCE)
-set(Android_CONFIGURE_JNI_PROJECT_SCRIPT "${_android_script_dir}/AndroidConfigureJniProject.cmake" CACHE FILEPATH "" FORCE)
-set(Android_PUSH_FILES_SCRIPT "${_android_script_dir}/AndroidPushFiles.cmake" CACHE FILEPATH "" FORCE)
-set(Android_INSTALL_FILES_SCRIPT "${_android_script_dir}/AndroidInstallFiles.cmake" CACHE FILEPATH "" FORCE)
-set(Android_TOOLCHAIN_FILE "${_android_script_dir}/AndroidToolchain.cmake" CACHE FILEPATH "" FORCE)
+	set(Android_SCRIPT_DIR "${dir}" PARENT_SCOPE)
+	set(Android_ParseManifestScript "${dir}/parse-manifest.py" PARENT_SCOPE)
+	set(Android_GENERATE_RESOURCE_SOURCE_FILES_TARGET_SCRIPT "${dir}/AndroidGenerateResourceSourceFilesTarget.cmake" PARENT_SCOPE)
+	set(Android_GENERATE_IDL_SOURCE_FILES_TARGET_SCRIPT "${dir}/AndroidGenerateIdlSourceFilesTarget.cmake" PARENT_SCOPE)
+	set(Android_GENERATE_JNI_LIBRARIES_TARGET_SCRIPT "${dir}/AndroidGenerateJniLibrariesTarget.cmake" PARENT_SCOPE)
+	set(Android_GENERATE_R_JAVA_FILE_SCRIPT "${dir}/AndroidGenerateRJavaFile.cmake" PARENT_SCOPE)
+	set(Android_GENERATE_IDL_JAVA_FILES_SCRIPT "${dir}/AndroidGenerateIdlJavaFiles.cmake" PARENT_SCOPE)
+	set(Android_GENERATE_RESOURCE_PACKAGE_SCRIPT "${dir}/AndroidGenerateResourcePackage.cmake" PARENT_SCOPE)
+	set(Android_GENERATE_DEX_FILES_SCRIPT "${dir}/AndroidGenerateDexFiles.cmake" PARENT_SCOPE)
+	set(Android_GENERATE_APK_PACKAGE_SCRIPT "${dir}/AndroidGenerateApkPackage.cmake" PARENT_SCOPE)
+	set(Android_GENERATE_SIGNED_PACKAGE_SCRIPT "${dir}/AndroidGenerateSignedPackage.cmake" PARENT_SCOPE)
+	set(Android_GENERATE_ASSETS_SOURCE_FILES_TARGET "${dir}/AndroidGenerateAssetsSourceFilesTarget.cmake" PARENT_SCOPE)
+	set(Android_GENERATE_NO_COMPRESS_ASSETS_JARS_SCRIPT "${dir}/AndroidGenerateNoCompressAssetsJars.cmake" PARENT_SCOPE)
+	set(Android_CONFIGURE_JNI_PROJECT_SCRIPT "${dir}/AndroidConfigureJniProject.cmake" PARENT_SCOPE)
+	set(Android_PUSH_FILES_SCRIPT "${dir}/AndroidPushFiles.cmake" PARENT_SCOPE)
+	set(Android_INSTALL_FILES_SCRIPT "${dir}/AndroidInstallFiles.cmake" PARENT_SCOPE)
+	set(Android_TOOLCHAIN_FILE "${dir}/AndroidToolchain.cmake" PARENT_SCOPE)
+endfunction()
 
-mark_as_advanced(
-	Android_SCRIPT_DIR
-	Android_EXTRACT_PACKAGE_NAME_SCRIPT
-	Android_GENERATE_RESOURCE_SOURCE_FILES_TARGET_SCRIPT
-	Android_GENERATE_IDL_SOURCE_FILES_TARGET_SCRIPT
-	Android_GENERATE_JNI_LIBRARIES_TARGET_SCRIPT
-	Android_GENERATE_R_JAVA_FILE_SCRIPT
-	Android_GENERATE_IDL_JAVA_FILES_SCRIPT
-	Android_GENERATE_RESOURCE_PACKAGE_SCRIPT
-	Android_GENERATE_DEX_FILES_SCRIPT
-	Android_GENERATE_APK_PACKAGE_SCRIPT
-	Android_GENERATE_SIGNED_PACKAGE_SCRIPT
-	Android_CONFIGURE_JNI_PROJECT_SCRIPT
-	Android_PUSH_FILES_SCRIPT
-	Android_INSTALL_FILES_SCRIPT
-	Android_TOOLCHAIN_FILE
-)
+__android_setup()
 
 
 # utils
@@ -226,7 +203,7 @@ function(android_add_package TARGET)
 	string(REPLACE ";" ":" _class_paths "${_class_paths}")
 
 	# source dirs
-	set(_src_dirs "${_root_dir}/src")
+	set(_src_dirs "${_root_dir}/java")
 	if ( _android_SRC_DIRS )
 		list(APPEND _src_dirs ${_android_SRC_DIRS})
 	endif()
@@ -283,6 +260,7 @@ function(android_add_package TARGET)
 	set(_apk_dir "${_build_dir}")
 
 	# target files
+	set(parse_manifest_target "${_target_dir}/parse-manifest")
 	set(_resource_source_files_target "${_target_dir}/resource-source-files.target")
 	set(_resource_package_files_target "${_target_dir}/resource-package-files.target")
 	set(_idl_source_files_target "${_target_dir}/idl-source-files.target")
@@ -297,32 +275,38 @@ function(android_add_package TARGET)
 	set(_signed_package_target "${_target_dir}/signed-package.target")
 
 	# output files
-	set(_manifest_package_name_file "${_output_dir}/package-name")
+	set(target_api_level_file "${_output_dir}/target-api-level")
+	set(package_name_file "${_output_dir}/package-name")
 	set(_dex_file "${_output_dir}/classes.dex")
 	set(_resource_package_file "${_output_dir}/resources.zip")
 	set(_unsigned_package_file "${_output_dir}/unsigned.apk")
 	set(_package_file "${_apk_dir}/${_apk_file_name}.apk")
 
-	# rule to extract package name
-	add_custom_command(OUTPUT "${_manifest_package_name_file}"
-		COMMAND "${CMAKE_COMMAND}"
-			-D "MANIFEST_FILE=${_manifest_file}"
-			-D "PACKAGE_NAME_FILE=${_manifest_package_name_file}"
-			-D "Java_JAVA_EXECUTABLE=${JavaTools_JAVA_EXECUTABLE}"
-			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
-			-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
-			-D "Android_SAXON_PACKAGE=${Android_SAXON_PACKAGE}"
-			-P "${Android_EXTRACT_PACKAGE_NAME_SCRIPT}"
+	# rule to parse manifest
+	add_custom_command(
+		OUTPUT
+			"${parse_manifest_target}"
+		COMMAND
+			"${PYTHON_EXECUTABLE}" "${Android_ParseManifestScript}"
+			"--manifest=${_manifest_file}"
+			"--target=${parse_manifest_target}"
+			"--target-api-level-file=${target_api_level_file}"
+			"--package-name-file=${package_name_file}"
+		BYPRODUCTS
+			"${target_api_level_file}"
+			"${package_name_file}"
 		DEPENDS
-			"${Android_EXTRACT_PACKAGE_NAME_SCRIPT}"
+			"${Android_ParseManifestScript}"
 			"${_manifest_file}"
 	)
+
+	add_custom_target(${TARGET}_ParseManifest DEPENDS "${parse_manifest_target}")
 
 	# prebuild rule to collect list of resource XMLs
 	add_custom_target(${TARGET}_ResourceSourceFiles
 		COMMAND "${CMAKE_COMMAND}"
 			-D "RES_DIR=${_res_dir}"
-			-D "PACKAGE_NAME_FILE=${_manifest_package_name_file}"
+			-D "PACKAGE_NAME_FILE=${package_name_file}"
 			-D "RESOURCE_SOURCE_FILES_TARGET=${_resource_source_files_target}"
 			-D "RESOURCE_PACKAGE_FILES_TARGET=${_resource_package_files_target}"
 			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
@@ -332,9 +316,8 @@ function(android_add_package TARGET)
 			"${_resource_source_files_target}"
 			"${_resource_package_files_target}"
 		DEPENDS
-			"${Android_GENERATE_RESOURCE_SOURCE_FILES_TARGET_SCRIPT}"
-			"${_manifest_package_name_file}"
 			${_android_DEPENDS}
+			${TARGET}_ParseManifest
 	)
 
 	# prebuild rule to collect list of IDL files
@@ -342,7 +325,7 @@ function(android_add_package TARGET)
 		COMMAND echo "Collecting IDL: ${TARGET}"
 		COMMAND "${CMAKE_COMMAND}"
 			-D "SRC_DIRS=${_src_dirs}"
-			-D "PACKAGE_NAME_FILE=${_manifest_package_name_file}"
+			-D "PACKAGE_NAME_FILE=${package_name_file}"
 			-D "IDL_SOURCE_FILES_TARGET=${_idl_source_files_target}"
 			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "JavaTools_SCRIPT_DIR=${JavaTools_SCRIPT_DIR}"
@@ -351,9 +334,8 @@ function(android_add_package TARGET)
 		BYPRODUCTS
 			"${_idl_source_files_target}"
 		DEPENDS
-			"${Android_GENERATE_IDL_SOURCE_FILES_TARGET_SCRIPT}"
-			"${_manifest_package_name_file}"
 			${_android_DEPENDS}
+			${TARGET}_ParseManifest
 	)
 
 	# prebuild rule to collect list of JNI libraries
@@ -374,12 +356,14 @@ function(android_add_package TARGET)
 	)
 
 	# rule to generate R java files
-	add_custom_command(OUTPUT "${_resource_java_files_target}"
+	add_custom_command(
+		OUTPUT
+			"${_resource_java_files_target}"
 		COMMAND "${CMAKE_COMMAND}"
 			-D "CMAKE_VERBOSE_MAKEFILE=${CMAKE_VERBOSE_MAKEFILE}"
 			-D "RES_DIR=${_res_dir}"
 			-D "GEN_DIR=${_gen_dir}"
-			-D "PACKAGE_NAME_FILE=${_manifest_package_name_file}"
+			-D "PACKAGE_NAME_FILE=${package_name_file}"
 			-D "MANIFEST_FILE=${_manifest_file}"
 			-D "RESOURCE_JAVA_FILES_TARGET=${_resource_java_files_target}"
 			-D "TARGET_PLATFORM=${_android_TARGET_PLATFORM}"
@@ -390,7 +374,7 @@ function(android_add_package TARGET)
 			-P "${Android_GENERATE_R_JAVA_FILE_SCRIPT}"
 		DEPENDS
 			"${Android_GENERATE_R_JAVA_FILE_SCRIPT}"
-			"${_manifest_package_name_file}"
+			"${package_name_file}"
 			"${_resource_source_files_target}"
 	)
 
@@ -402,7 +386,7 @@ function(android_add_package TARGET)
 			-D "SRC_DIRS=${_src_dirs}"
 			-D "INCLUDE_DIRS=${_gen_dir}:${_src_dirs}"
 			-D "GEN_DIR=${_gen_dir}"
-			-D "PACKAGE_NAME_FILE=${_manifest_package_name_file}"
+			-D "PACKAGE_NAME_FILE=${package_name_file}"
 			-D "IDL_SOURCE_FILES_TARGET=${_idl_source_files_target}"
 			-D "IDL_JAVA_FILES_TARGET=${_idl_java_files_target}"
 			-D "TARGET_PLATFORM=${_android_TARGET_PLATFORM}"
@@ -415,7 +399,7 @@ function(android_add_package TARGET)
 		COMMAND echo "Generating IDL java files DONE: ${TARGET}"
 		DEPENDS
 			"${Android_GENERATE_IDL_JAVA_FILES_SCRIPT}"
-			"${_manifest_package_name_file}"
+			"${package_name_file}"
 			"${_resource_java_files_target}"
 			"${_idl_source_files_target}"
 	)
