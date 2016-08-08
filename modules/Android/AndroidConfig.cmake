@@ -159,44 +159,44 @@ set(Android_FOUND YES)
 #   EXCLUDE_FROM_ALL           - If set, generated target will be skipped from 'all' target.
 
 function(android_add_package TARGET)
-	cmake_parse_arguments(_android ""
+	cmake_parse_arguments(a ""
 		"ROOT_DIR;MANIFEST_FILE;RES_DIR;TARGET_PLATFORM;KEYSTORE_FILE;APK_FILE_NAME;EXCLUDE_FROM_ALL"
 		"SRC_DIRS;ASSETS_DIRS;NO_COMPRESS_ASSETS_DIRS;LIB_DIRS;LIB_TARGET_FILES;CLASS_PATHS;JAR_FILES;DEPENDS;RESOURCE_DEPENDS" ${ARGN}
 	)
 
-	if ( NOT _android_ROOT_DIR )
-		set(_android_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+	if ( NOT a_ROOT_DIR )
+		set(a_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 	endif()
 
-	if ( NOT _android_TARGET_PLATFORM )
+	if ( NOT a_TARGET_PLATFORM )
 		message(FATAL_ERROR "No Android target platform specified. Use TARGET_PLATFORM token to specify target. Available target platforms: ${Android_TARGET_PLATFORMS}")
 	endif()
 
-	list(FIND Android_TARGET_PLATFORMS "${_android_TARGET_PLATFORM}" _target_platform_index)
+	list(FIND Android_TARGET_PLATFORMS "${a_TARGET_PLATFORM}" _target_platform_index)
 	if ( _target_platform_index EQUAL -1 )
-		message(FATAL_ERROR "Invalid target platform: ${_android_TARGET_PLATFORM}. Available target platforms: ${Android_TARGET_PLATFORMS}")
+		message(FATAL_ERROR "Invalid target platform: ${a_TARGET_PLATFORM}. Available target platforms: ${Android_TARGET_PLATFORMS}")
 	endif()
 
 	# resolve apk file name
-	if ( NOT _android_APK_FILE_NAME )
+	if ( NOT a_APK_FILE_NAME )
 		set(_apk_file_name "${TARGET}")
 	else()
-		set(_apk_file_name "${_android_APK_FILE_NAME}")
+		set(_apk_file_name "${a_APK_FILE_NAME}")
 	endif()
 
 	# root dir
-	get_filename_component(_root_dir "${_android_ROOT_DIR}" ABSOLUTE)
+	get_filename_component(_root_dir "${a_ROOT_DIR}" ABSOLUTE)
 
 	# manifest file
-	if ( _android_MANIFEST_FILE )
-		get_filename_component(_manifest_file "${_android_MANIFEST_FILE}" ABSOLUTE)
+	if ( a_MANIFEST_FILE )
+		get_filename_component(_manifest_file "${a_MANIFEST_FILE}" ABSOLUTE)
 	else()
 		set(_manifest_file "${_root_dir}/AndroidManifest.xml")
 	endif()
 
 	# class paths
 	set(_class_paths)
-	foreach ( _class_path ${_android_CLASS_PATHS} )
+	foreach ( _class_path ${a_CLASS_PATHS} )
 		get_filename_component(_path "${_class_path}" ABSOLUTE)
 		list(APPEND _class_paths "${_path}")
 	endforeach()
@@ -204,13 +204,13 @@ function(android_add_package TARGET)
 
 	# source dirs
 	set(_src_dirs "${_root_dir}/java")
-	if ( _android_SRC_DIRS )
-		list(APPEND _src_dirs ${_android_SRC_DIRS})
+	if ( a_SRC_DIRS )
+		list(APPEND _src_dirs ${a_SRC_DIRS})
 	endif()
 	string(REPLACE ";" ":" _src_dirs "${_src_dirs}")
 
-	if ( _android_RES_DIR )
-		set(_res_dir "${_android_RES_DIR}")
+	if ( a_RES_DIR )
+		set(_res_dir "${a_RES_DIR}")
 	else()
 		set(_res_dir "${_root_dir}/res")
 	endif()
@@ -219,7 +219,7 @@ function(android_add_package TARGET)
 
 	# assets
 	set(_assets_dirs)
-	foreach ( _a_dir ${_android_ASSETS_DIRS} )
+	foreach ( _a_dir ${a_ASSETS_DIRS} )
 		get_filename_component(_path "${_a_dir}" ABSOLUTE)
 		list(APPEND _assets_dirs "${_path}")
 	endforeach()
@@ -227,7 +227,7 @@ function(android_add_package TARGET)
 
 	# no compress assets
 	set(_no_compress_assets_dirs)
-	foreach ( _dir ${_android_NO_COMPRESS_ASSETS_DIRS} )
+	foreach ( _dir ${a_NO_COMPRESS_ASSETS_DIRS} )
 		get_filename_component(_path "${_dir}" ABSOLUTE)
 		list(APPEND _no_compress_assets_dirs "${_path}")
 	endforeach()
@@ -235,7 +235,7 @@ function(android_add_package TARGET)
 
 	# libs
 	set(_lib_dirs)
-	foreach ( _lib_dir ${_android_LIB_DIRS} )
+	foreach ( _lib_dir ${a_LIB_DIRS} )
 		get_filename_component(_path "${_lib_dir}" ABSOLUTE)
 		list(APPEND _lib_dirs "${_path}")
 	endforeach()
@@ -243,7 +243,7 @@ function(android_add_package TARGET)
 
 	# jars
 	set(_jar_files)
-	foreach ( _jar_file ${_android_JAR_FILES} )
+	foreach ( _jar_file ${a_JAR_FILES} )
 		get_filename_component(_path "${_jar_file}" ABSOLUTE)
 		list(APPEND _jar_files "${_path}")
 	endforeach()
@@ -316,7 +316,7 @@ function(android_add_package TARGET)
 			"${_resource_source_files_target}"
 			"${_resource_package_files_target}"
 		DEPENDS
-			${_android_DEPENDS}
+			${a_DEPENDS}
 			${TARGET}_ParseManifest
 	)
 
@@ -334,7 +334,7 @@ function(android_add_package TARGET)
 		BYPRODUCTS
 			"${_idl_source_files_target}"
 		DEPENDS
-			${_android_DEPENDS}
+			${a_DEPENDS}
 			${TARGET}_ParseManifest
 	)
 
@@ -351,8 +351,8 @@ function(android_add_package TARGET)
 			"${_jni_libraries_target}"
 		DEPENDS
 			"${Android_GENERATE_JNI_LIBRARIES_TARGET_SCRIPT}"
-			${_android_LIB_TARGET_FILES}
-			${_android_DEPENDS}
+			${a_LIB_TARGET_FILES}
+			${a_DEPENDS}
 	)
 
 	# rule to generate R java files
@@ -366,7 +366,7 @@ function(android_add_package TARGET)
 			-D "PACKAGE_NAME_FILE=${package_name_file}"
 			-D "MANIFEST_FILE=${_manifest_file}"
 			-D "RESOURCE_JAVA_FILES_TARGET=${_resource_java_files_target}"
-			-D "TARGET_PLATFORM=${_android_TARGET_PLATFORM}"
+			-D "TARGET_PLATFORM=${a_TARGET_PLATFORM}"
 			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
 			-D "Android_PLATFORMS_DIR=${Android_PLATFORMS_DIR}"
@@ -389,7 +389,7 @@ function(android_add_package TARGET)
 			-D "PACKAGE_NAME_FILE=${package_name_file}"
 			-D "IDL_SOURCE_FILES_TARGET=${_idl_source_files_target}"
 			-D "IDL_JAVA_FILES_TARGET=${_idl_java_files_target}"
-			-D "TARGET_PLATFORM=${_android_TARGET_PLATFORM}"
+			-D "TARGET_PLATFORM=${a_TARGET_PLATFORM}"
 			-D "Android_SDK_ROOT=${Android_SDK_ROOT}"
 			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
@@ -409,7 +409,7 @@ function(android_add_package TARGET)
 			"${_src_dirs}"
 			"${_gen_dir}"
 		CLASS_PATHS
-			"${Android_PLATFORMS_DIR}/${_android_TARGET_PLATFORM}/android.jar"
+			"${Android_PLATFORMS_DIR}/${a_TARGET_PLATFORM}/android.jar"
 			${_class_paths}
 		CLASSES_DIR
 			"${_classes_dir}"
@@ -436,20 +436,20 @@ function(android_add_package TARGET)
 		DEPENDS
 			"${Android_GENERATE_DEX_FILES_SCRIPT}"
 			"${_java_classes_target}"
-			${_android_JAR_FILES}
+			${a_JAR_FILES}
 	)
 
 	# rule to generate keystore file
-	if ( NOT _android_KEYSTORE_FILE )
-		set(_android_KEYSTORE_FILE "${_keystore_dir}/debug.keystore")
+	if ( NOT a_KEYSTORE_FILE )
+		set(a_KEYSTORE_FILE "${_keystore_dir}/debug.keystore")
 		add_custom_command(
-			OUTPUT "${_android_KEYSTORE_FILE}"
+			OUTPUT "${a_KEYSTORE_FILE}"
 			COMMAND "${CMAKE_COMMAND}" -E make_directory "${_keystore_dir}"
 			COMMAND "${Android_KEYTOOL_COMMAND}" -genkey
 				-alias "androiddebugkey"
 				-keypass "android"
 				-validity "100000"
-				-keystore "${_android_KEYSTORE_FILE}"
+				-keystore "${a_KEYSTORE_FILE}"
 				-storepass "android"
 				-dname "CN=Android Debug,O=Android,C=US"
 		)
@@ -463,7 +463,7 @@ function(android_add_package TARGET)
 			-D "RES_DIR=${_res_dir}"
 			-D "ASSETS_DIR=${_assets_dir}"
 			-D "MANIFEST_FILE=${_manifest_file}"
-			-D "TARGET_PLATFORM=${_android_TARGET_PLATFORM}"
+			-D "TARGET_PLATFORM=${a_TARGET_PLATFORM}"
 			-D "RESOURCE_PACKAGE_FILE=${_resource_package_file}"
 			-D "RESOURCE_PACKAGE_TARGET=${_resource_package_target}"
 			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
@@ -475,8 +475,8 @@ function(android_add_package TARGET)
 			"${Android_GENERATE_RESOURCE_PACKAGE_SCRIPT}"
 			"${_resource_package_files_target}"
 			"${_manifest_file}"
-			${_android_DEPENDS}
-			${_android_RESOURCE_DEPENDS}
+			${a_DEPENDS}
+			${a_RESOURCE_DEPENDS}
 	)
 
 	# prebuild rule to collect list no compressed asset files
@@ -529,7 +529,7 @@ function(android_add_package TARGET)
 			"${_jni_libraries_target}"
 			"${_no_compress_assets_target}"
 			"${_dex_file}"
-			${_android_DEPENDS}
+			${a_DEPENDS}
 			${TARGET}_NoCompressAssetsSourceFiles
 			"${_no_compress_assets_jars_target}"
 	)
@@ -539,7 +539,7 @@ function(android_add_package TARGET)
 		COMMAND "${CMAKE_COMMAND}"
 			-D "CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
 			-D "CMAKE_VERBOSE_MAKEFILE=${CMAKE_VERBOSE_MAKEFILE}"
-			-D "KEYSTORE_FILE=${_android_KEYSTORE_FILE}"
+			-D "KEYSTORE_FILE=${a_KEYSTORE_FILE}"
 			-D "UNSIGNED_PACKAGE_FILE=${_unsigned_package_file}"
 			-D "SIGNED_PACKAGE_FILE=${_package_file}"
 			-D "SIGNED_PACKAGE_TARGET=${_signed_package_target}"
@@ -550,12 +550,12 @@ function(android_add_package TARGET)
 		DEPENDS
 			"${Android_GENERATE_SIGNED_PACKAGE_SCRIPT}"
 			"${_unsigned_package_target}"
-			"${_android_KEYSTORE_FILE}"
+			"${a_KEYSTORE_FILE}"
 	)
 
 	# target
 	set(_all_flag)
-	if ( NOT _android_EXCLUDE_FROM_ALL )
+	if ( NOT a_EXCLUDE_FROM_ALL )
 		set(_all_flag "ALL")
 	endif()
 
@@ -564,8 +564,8 @@ function(android_add_package TARGET)
 	add_dependencies(${TARGET} ${TARGET}_Java)
 
 	# custom dependencies
-	if ( _android_JNI_TARGETS )
-		add_dependencies(${TARGET} ${_android_JNI_TARGETS})
+	if ( a_JNI_TARGETS )
+		add_dependencies(${TARGET} ${a_JNI_TARGETS})
 	endif()
 
 	# target properties
