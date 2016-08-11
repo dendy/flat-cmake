@@ -63,28 +63,26 @@ endif()
 
 
 # paths
-set(Android_PLATFORMS_DIR "${Android_SDK_ROOT}/platforms" CACHE PATH "" FORCE)
-set(Android_TOOLS_DIR "${Android_SDK_ROOT}/tools" CACHE PATH "" FORCE)
-set(Android_PLATFORM_TOOLS_DIR "${Android_SDK_ROOT}/platform-tools" CACHE PATH "" FORCE)
-# FIXME: Resolve build tools dir properly.
-set(Android_BUILD_TOOLS_DIR "${Android_SDK_ROOT}/build-tools/23.0.3" CACHE PATH "" FORCE)
-mark_as_advanced(Android_PLATFORMS_DIR Android_TOOLS_DIR Android_PLATFORM_TOOLS_DIR Android_BUILD_TOOLS_DIR)
+set(Android_ToolsDir "${Android_SDK_ROOT}/tools")
+set(Android_PlatformToolsDir "${Android_SDK_ROOT}/platform-tools")
+set(Android_BuildToolsDir "${Android_SDK_ROOT}/build-tools")
+set(Android_PlatformsDir "${Android_SDK_ROOT}/platforms")
+
+set(Android_CacheDir "${CMAKE_BINARY_DIR}/android-cache")
 
 
 # tools
-set(Android_SDKLIB_JAR "${Android_TOOLS_DIR}/lib/sdklib.jar" CACHE FILEPATH "" FORCE)
-mark_as_advanced(Android_SDKLIB_JAR)
+set(Android_SdklibJar "${Android_ToolsDir}/lib/sdklib.jar")
 
 
 # platform tools
-set(Android_ADB_COMMAND "${Android_PLATFORM_TOOLS_DIR}/adb" CACHE FILEPATH "" FORCE)
-set(Android_AAPT_COMMAND "${Android_BUILD_TOOLS_DIR}/aapt" CACHE FILEPATH "" FORCE)
+set(Android_ADB_COMMAND "${Android_PlatformToolsDir}/adb")
 set(Android_AIDL_COMMAND "${Android_BUILD_TOOLS_DIR}/aidl" CACHE FILEPATH "" FORCE)
 set(Android_DX_COMMAND "${Android_BUILD_TOOLS_DIR}/dx" CACHE FILEPATH "" FORCE)
-mark_as_advanced(Android_ADB_COMMAND Android_AAPT_COMMAND Android_AIDL_COMMAND Android_DX_COMMAND)
 
 
 # helper variables
+set(Android_PythonCommand "${PYTHON_EXECUTABLE}" -B)
 set(Android_VARIABLES_FILE_NAME "android-variables" CACHE STRING "" FORCE)
 set(Android_JNI_LIBRARY_OUTPUT_DIRECTORY_NAME "jni-libs" CACHE STRING "" FORCE)
 mark_as_advanced(Android_VARIABLES_FILE_NAME Android_JNI_LIBRARY_OUTPUT_DIRECTORY_NAME)
@@ -95,11 +93,14 @@ function(__android_setup)
 	get_filename_component(dir "${CMAKE_CURRENT_LIST_FILE}" PATH)
 
 	set(Android_SCRIPT_DIR "${dir}" PARENT_SCOPE)
+	set(Android_CollectCompileDependenciesScript "${dir}/collect-compile-dependencies.py" PARENT_SCOPE)
+	set(Android_CollectPackagesScript "${dir}/collect-packages.py" PARENT_SCOPE)
+	set(Android_SelectBuildToolsScript "${dir}/select-build-tools.py" PARENT_SCOPE)
 	set(Android_ParseManifestScript "${dir}/parse-manifest.py" PARENT_SCOPE)
-	set(Android_GENERATE_RESOURCE_SOURCE_FILES_TARGET_SCRIPT "${dir}/AndroidGenerateResourceSourceFilesTarget.cmake" PARENT_SCOPE)
+	set(Android_CollectResourceFilesScript "${dir}/collect-resource-files.py" PARENT_SCOPE)
+	set(Android_GenerateRJavaFilesScript "${dir}/generate-r-java-files.py" PARENT_SCOPE)
 	set(Android_GENERATE_IDL_SOURCE_FILES_TARGET_SCRIPT "${dir}/AndroidGenerateIdlSourceFilesTarget.cmake" PARENT_SCOPE)
 	set(Android_GENERATE_JNI_LIBRARIES_TARGET_SCRIPT "${dir}/AndroidGenerateJniLibrariesTarget.cmake" PARENT_SCOPE)
-	set(Android_GENERATE_R_JAVA_FILE_SCRIPT "${dir}/AndroidGenerateRJavaFile.cmake" PARENT_SCOPE)
 	set(Android_GENERATE_IDL_JAVA_FILES_SCRIPT "${dir}/AndroidGenerateIdlJavaFiles.cmake" PARENT_SCOPE)
 	set(Android_GENERATE_RESOURCE_PACKAGE_SCRIPT "${dir}/AndroidGenerateResourcePackage.cmake" PARENT_SCOPE)
 	set(Android_GENERATE_DEX_FILES_SCRIPT "${dir}/AndroidGenerateDexFiles.cmake" PARENT_SCOPE)
@@ -111,6 +112,20 @@ function(__android_setup)
 	set(Android_PUSH_FILES_SCRIPT "${dir}/AndroidPushFiles.cmake" PARENT_SCOPE)
 	set(Android_INSTALL_FILES_SCRIPT "${dir}/AndroidInstallFiles.cmake" PARENT_SCOPE)
 	set(Android_TOOLCHAIN_FILE "${dir}/AndroidToolchain.cmake" PARENT_SCOPE)
+
+	execute_process(
+		COMMAND
+			${Android_PythonCommand} "${dir}/parse-sdk.py"
+			"--android-sdk-dir=${Android_SDK_ROOT}"
+			"--output-dir=${Android_CacheDir}"
+			"--depends=${dir}/parse-sdk.py"
+		RESULT_VARIABLE result
+		ERROR_VARIABLE error
+	)
+
+	if ( NOT ${result} EQUAL 0 )
+		message(FATAL_ERROR "Error parsing Android SDK: ${error}")
+	endif()
 endfunction()
 
 __android_setup()
@@ -119,21 +134,6 @@ __android_setup()
 # utils
 include("${Android_SCRIPT_DIR}/AndroidUtil.cmake")
 
-
-# locate target platforms
-file(GLOB _android_platforms_entries RELATIVE "${Android_PLATFORMS_DIR}" "${Android_PLATFORMS_DIR}/*")
-set(_android_target_platforms)
-foreach ( _platforms_entry ${_android_platforms_entries} )
-	if ( EXISTS "${Android_PLATFORMS_DIR}/${_platforms_entry}/android.jar" )
-		list(APPEND _android_target_platforms "${_platforms_entry}")
-	endif()
-endforeach()
-set(Android_TARGET_PLATFORMS ${_android_target_platforms} CACHE INTERNAL "" FORCE)
-mark_as_advanced(Android_TARGET_PLATFORMS)
-
-
-message(STATUS "Found Android SDK in: ${Android_SDK_ROOT}")
-message(STATUS "Available target platforms: ${Android_TARGET_PLATFORMS}")
 
 set(Android_FOUND YES)
 
@@ -159,39 +159,51 @@ set(Android_FOUND YES)
 #   EXCLUDE_FROM_ALL           - If set, generated target will be skipped from 'all' target.
 
 function(android_add_package TARGET)
-	cmake_parse_arguments(a ""
-		"ROOT_DIR;MANIFEST_FILE;RES_DIR;TARGET_PLATFORM;KEYSTORE_FILE;APK_FILE_NAME;EXCLUDE_FROM_ALL"
-		"SRC_DIRS;ASSETS_DIRS;NO_COMPRESS_ASSETS_DIRS;LIB_DIRS;LIB_TARGET_FILES;CLASS_PATHS;JAR_FILES;DEPENDS;RESOURCE_DEPENDS" ${ARGN}
+	set(args_single
+		ROOT_DIR
+		MANIFEST_FILE
+		RES_DIR
+		BUILD_TOOLS
+		PLATFORM API_LEVEL
+		KEYSTORE_FILE
+		APK_FILE_NAME
+		EXCLUDE_FROM_ALL
 	)
 
-	if ( NOT a_ROOT_DIR )
-		set(a_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-	endif()
+	set(args_multi
+		SRC_DIRS
+		ASSETS_DIRS
+		NO_COMPRESS_ASSETS_DIRS
+		LIB_DIRS
+		LIB_TARGET_FILES
+		CLASS_PATHS
+		JAR_FILES
+		DEPENDS
+		RESOURCE_DEPENDS
+		COMPILE_DEPENDENCIES
+	)
 
-	if ( NOT a_TARGET_PLATFORM )
-		message(FATAL_ERROR "No Android target platform specified. Use TARGET_PLATFORM token to specify target. Available target platforms: ${Android_TARGET_PLATFORMS}")
-	endif()
+	cmake_parse_arguments(a "" "${args_single}" "${args_multi}" ${ARGN})
 
-	list(FIND Android_TARGET_PLATFORMS "${a_TARGET_PLATFORM}" _target_platform_index)
-	if ( _target_platform_index EQUAL -1 )
-		message(FATAL_ERROR "Invalid target platform: ${a_TARGET_PLATFORM}. Available target platforms: ${Android_TARGET_PLATFORMS}")
+	if ( NOT a_ROOT_DIR AND NOT a_MANIFEST_FILE )
+		message(FATAL_ERROR "Either ROOT_DIR or MANIFEST_FILE is mandatory")
 	endif()
 
 	# resolve apk file name
-	if ( NOT a_APK_FILE_NAME )
-		set(_apk_file_name "${TARGET}")
-	else()
+	if ( a_APK_FILE_NAME )
 		set(_apk_file_name "${a_APK_FILE_NAME}")
+	else()
+		set(_apk_file_name "${TARGET}")
 	endif()
 
 	# root dir
-	get_filename_component(_root_dir "${a_ROOT_DIR}" ABSOLUTE)
+	get_filename_component(root_dir "${a_ROOT_DIR}" ABSOLUTE)
 
 	# manifest file
 	if ( a_MANIFEST_FILE )
-		get_filename_component(_manifest_file "${a_MANIFEST_FILE}" ABSOLUTE)
+		get_filename_component(manifest_file "${a_MANIFEST_FILE}" ABSOLUTE)
 	else()
-		set(_manifest_file "${_root_dir}/AndroidManifest.xml")
+		set(manifest_file "${root_dir}/AndroidManifest.xml")
 	endif()
 
 	# class paths
@@ -203,19 +215,19 @@ function(android_add_package TARGET)
 	string(REPLACE ";" ":" _class_paths "${_class_paths}")
 
 	# source dirs
-	set(_src_dirs "${_root_dir}/java")
+	set(_src_dirs "${root_dir}/java")
 	if ( a_SRC_DIRS )
 		list(APPEND _src_dirs ${a_SRC_DIRS})
 	endif()
 	string(REPLACE ";" ":" _src_dirs "${_src_dirs}")
 
 	if ( a_RES_DIR )
-		set(_res_dir "${a_RES_DIR}")
+		set(res_dir "${a_RES_DIR}")
 	else()
-		set(_res_dir "${_root_dir}/res")
+		set(res_dir "${root_dir}/res")
 	endif()
 
-	set(_assets_dir "${_root_dir}/assets")
+	set(_assets_dir "${root_dir}/assets")
 
 	# assets
 	set(_assets_dirs)
@@ -254,6 +266,7 @@ function(android_add_package TARGET)
 	set(_gen_dir "${_build_dir}/gen")
 	set(_classes_dir "${_build_dir}/classes")
 	set(_output_dir "${_build_dir}/output")
+	set(cache_dir "${_build_dir}/cache")
 	set(_target_dir "${_build_dir}/targets")
 	set(_keystore_dir "${_build_dir}/keystore")
 	set(_jni_libs_dir "${_build_dir}/libs")
@@ -261,10 +274,10 @@ function(android_add_package TARGET)
 
 	# target files
 	set(parse_manifest_target "${_target_dir}/parse-manifest")
-	set(_resource_source_files_target "${_target_dir}/resource-source-files.target")
-	set(_resource_package_files_target "${_target_dir}/resource-package-files.target")
+	set(resource_source_files_target "${_target_dir}/resource-source-files")
+	set(resource_package_files_target "${_target_dir}/resource-package-files")
 	set(_idl_source_files_target "${_target_dir}/idl-source-files.target")
-	set(_resource_java_files_target "${_target_dir}/resource-java-files.target")
+	set(r_java_files_target "${_target_dir}/r-java-files")
 	set(_idl_java_files_target "${_target_dir}/idl-java-files.target")
 	set(_java_class_files_target "${_target_dir}/java-class-files.target")
 	set(_resource_package_target "${_target_dir}/resource-package.target")
@@ -275,49 +288,120 @@ function(android_add_package TARGET)
 	set(_signed_package_target "${_target_dir}/signed-package.target")
 
 	# output files
-	set(target_api_level_file "${_output_dir}/target-api-level")
+	set(available_build_tools_file "${_output_dir}/available-build-tools")
+	set(build_tools_file "${_output_dir}/build-tools")
+	set(available_platforms_file "${_output_dir}/available-platforms")
+	set(platform_file "${_output_dir}/platform")
 	set(package_name_file "${_output_dir}/package-name")
 	set(_dex_file "${_output_dir}/classes.dex")
 	set(_resource_package_file "${_output_dir}/resources.zip")
 	set(_unsigned_package_file "${_output_dir}/unsigned.apk")
 	set(_package_file "${_apk_dir}/${_apk_file_name}.apk")
 
+	# cached files
+	set(compile_dependencies_file "${cache_dir}/compile-dependencies")
+
+	# command to collect compile dependencies
+	set(compile_dependencies_args)
+	foreach ( compile_dependency ${a_COMPILE_DEPENDENCIES} )
+		list(APPEND compile_dependencies_args "--compile-dependency=${compile_dependency}")
+	endforeach()
+
+	execute_process(
+		COMMAND
+			${Android_PythonCommand} "${Android_CollectCompileDependenciesScript}"
+			"--android-sdk-dir=${Android_SDK_ROOT}"
+			"--extras-file=${Android_CacheDir}/extras"
+			${compile_dependencies_args}
+			"--output=${compile_dependencies_file}"
+			"--depends=${Android_CollectCompileDependenciesScript}"
+			"--depends=${Android_CacheDir}/extras"
+	)
+
+	# rule to collect available build tools
+	add_custom_target(${TARGET}_CollectAvailableBuildTools
+		COMMAND
+			${Android_PythonCommand} "${Android_CollectPackagesScript}"
+			"--dir=${Android_BuildToolsDir}"
+			"--output=${available_build_tools_file}"
+		BYPRODUCTS
+			"${available_build_tools_file}"
+		DEPENDS
+			"${Android_CollectPackagesScript}"
+		VERBATIM
+	)
+
+	# rule to select build tools
+	add_custom_command(
+		OUTPUT
+			"${build_tools_file}"
+		COMMAND
+			"${PYTHON_EXECUTABLE}" "${Android_SelectBuildToolsScript}"
+			"--dir=${Android_BuildToolsDir}"
+			"--available-build-tools-file=${available_build_tools_file}"
+			"--version=${a_BUILD_TOOLS}"
+			"--output=${build_tools_file}"
+		DEPENDS
+			"${Android_SelectBuildToolsScript}"
+			"${available_build_tools_file}"
+		VERBATIM
+	)
+
+	# rule to collect available platforms
+	add_custom_target(${TARGET}_CollectAvailablePlatforms
+		COMMAND
+			${Android_PythonCommand} "${Android_CollectPackagesScript}"
+			"--dir=${Android_PlatformsDir}"
+			"--output=${available_platforms_file}"
+		BYPRODUCTS
+			"${available_platforms_file}"
+		DEPENDS
+			"${Android_CollectPackagesScript}"
+		VERBATIM
+	)
+
 	# rule to parse manifest
 	add_custom_command(
 		OUTPUT
 			"${parse_manifest_target}"
 		COMMAND
-			"${PYTHON_EXECUTABLE}" "${Android_ParseManifestScript}"
-			"--manifest=${_manifest_file}"
+			${Android_PythonCommand} "${Android_ParseManifestScript}"
+			"--manifest=${manifest_file}"
+			"--platforms-dir=${Android_PlatformsDir}"
+			"--available-platforms-file=${available_platforms_file}"
+			"--platform=${a_PLATFORM}"
 			"--target=${parse_manifest_target}"
-			"--target-api-level-file=${target_api_level_file}"
+			"--platform-file=${platform_file}"
 			"--package-name-file=${package_name_file}"
 		BYPRODUCTS
-			"${target_api_level_file}"
+			"${platform_file}"
 			"${package_name_file}"
 		DEPENDS
 			"${Android_ParseManifestScript}"
-			"${_manifest_file}"
+			"${manifest_file}"
+			"${available_platforms_file}"
+		VERBATIM
 	)
 
-	add_custom_target(${TARGET}_ParseManifest DEPENDS "${parse_manifest_target}")
+	add_custom_target(${TARGET}_ParseManifest
+		DEPENDS
+			${TARGET}_CollectAvailablePlatforms
+			"${parse_manifest_target}"
+	)
 
-	# prebuild rule to collect list of resource XMLs
-	add_custom_target(${TARGET}_ResourceSourceFiles
-		COMMAND "${CMAKE_COMMAND}"
-			-D "RES_DIR=${_res_dir}"
-			-D "PACKAGE_NAME_FILE=${package_name_file}"
-			-D "RESOURCE_SOURCE_FILES_TARGET=${_resource_source_files_target}"
-			-D "RESOURCE_PACKAGE_FILES_TARGET=${_resource_package_files_target}"
-			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
-			-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
-			-P "${Android_GENERATE_RESOURCE_SOURCE_FILES_TARGET_SCRIPT}"
+	# prebuild rule to collect list of resource files
+	add_custom_target(${TARGET}_CollectResourceFiles
+		COMMAND
+			${Android_PythonCommand} "${Android_CollectResourceFilesScript}"
+			"--res-dir=${res_dir}"
+			"--source-files-target=${resource_source_files_target}"
+			"--package-files-target=${resource_package_files_target}"
 		BYPRODUCTS
-			"${_resource_source_files_target}"
-			"${_resource_package_files_target}"
+			"${resource_source_files_target}"
+			"${resource_package_files_target}"
 		DEPENDS
 			${a_DEPENDS}
-			${TARGET}_ParseManifest
+			"${Android_CollectResourceFilesScript}"
 	)
 
 	# prebuild rule to collect list of IDL files
@@ -358,24 +442,26 @@ function(android_add_package TARGET)
 	# rule to generate R java files
 	add_custom_command(
 		OUTPUT
-			"${_resource_java_files_target}"
-		COMMAND "${CMAKE_COMMAND}"
-			-D "CMAKE_VERBOSE_MAKEFILE=${CMAKE_VERBOSE_MAKEFILE}"
-			-D "RES_DIR=${_res_dir}"
-			-D "GEN_DIR=${_gen_dir}"
-			-D "PACKAGE_NAME_FILE=${package_name_file}"
-			-D "MANIFEST_FILE=${_manifest_file}"
-			-D "RESOURCE_JAVA_FILES_TARGET=${_resource_java_files_target}"
-			-D "TARGET_PLATFORM=${a_TARGET_PLATFORM}"
-			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
-			-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
-			-D "Android_PLATFORMS_DIR=${Android_PLATFORMS_DIR}"
-			-D "Android_AAPT_COMMAND=${Android_AAPT_COMMAND}"
-			-P "${Android_GENERATE_R_JAVA_FILE_SCRIPT}"
+			"${r_java_files_target}"
+		COMMAND
+			${Android_PythonCommand} "${Android_GenerateRJavaFilesScript}"
+			"--res-dir=${res_dir}"
+			"--output-dir=${_gen_dir}"
+			"--manifest-file=${manifest_file}"
+			"--build-tools-dir=${Android_BuildToolsDir}"
+			"--platforms-dir=${Android_PlatformsDir}"
+			"--package-name-file=${package_name_file}"
+			"--build-tools-file=${build_tools_file}"
+			"--platform-file=${platform_file}"
+			"--target-file=${r_java_files_target}"
 		DEPENDS
-			"${Android_GENERATE_R_JAVA_FILE_SCRIPT}"
+			"${Android_GenerateRJavaFilesScript}"
 			"${package_name_file}"
-			"${_resource_source_files_target}"
+			"${build_tools_file}"
+			"${platform_file}"
+			"${manifest_file}"
+			"${resource_source_files_target}"
+		VERBATIM
 	)
 
 	# rule to generate IDL Java files
@@ -393,14 +479,14 @@ function(android_add_package TARGET)
 			-D "Android_SDK_ROOT=${Android_SDK_ROOT}"
 			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
-			-D "Android_PLATFORMS_DIR=${Android_PLATFORMS_DIR}"
+			-D "Android_PLATFORMS_DIR=${Android_PlatformsDir}"
 			-D "Android_AIDL_COMMAND=${Android_AIDL_COMMAND}"
 			-P "${Android_GENERATE_IDL_JAVA_FILES_SCRIPT}"
 		COMMAND echo "Generating IDL java files DONE: ${TARGET}"
 		DEPENDS
 			"${Android_GENERATE_IDL_JAVA_FILES_SCRIPT}"
 			"${package_name_file}"
-			"${_resource_java_files_target}"
+			"${r_java_files_target}"
 			"${_idl_source_files_target}"
 	)
 
@@ -409,13 +495,15 @@ function(android_add_package TARGET)
 			"${_src_dirs}"
 			"${_gen_dir}"
 		CLASS_PATHS
-			"${Android_PLATFORMS_DIR}/${a_TARGET_PLATFORM}/android.jar"
+			"${Android_PlatformsDir}/${a_TARGET_PLATFORM}/android.jar"
 			${_class_paths}
 		CLASSES_DIR
 			"${_classes_dir}"
 		DEPENDS
 			"${_idl_java_files_target}"
-			${TARGET}_ResourceSourceFiles
+			${TARGET}_CollectAvailableBuildTools
+			${TARGET}_CollectAvailablePlatforms
+			${TARGET}_CollectResourceFiles
 			${TARGET}_IdlSourceFiles
 		TARGET_FILE_VAR
 			_java_classes_target
@@ -456,25 +544,29 @@ function(android_add_package TARGET)
 	endif()
 
 	# rule to generate resources package
-	add_custom_command(OUTPUT "${_resource_package_target}" "${_resource_package_file}"
+	add_custom_command(
+		OUTPUT
+			"${_resource_package_target}" "${_resource_package_file}"
 		COMMAND "${CMAKE_COMMAND}"
 			-D "CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
 			-D "CMAKE_VERBOSE_MAKEFILE=${CMAKE_VERBOSE_MAKEFILE}"
-			-D "RES_DIR=${_res_dir}"
+			-D "RES_DIR=${res_dir}"
 			-D "ASSETS_DIR=${_assets_dir}"
-			-D "MANIFEST_FILE=${_manifest_file}"
+			-D "MANIFEST_FILE=${manifest_file}"
 			-D "TARGET_PLATFORM=${a_TARGET_PLATFORM}"
 			-D "RESOURCE_PACKAGE_FILE=${_resource_package_file}"
 			-D "RESOURCE_PACKAGE_TARGET=${_resource_package_target}"
 			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
-			-D "Android_PLATFORMS_DIR=${Android_PLATFORMS_DIR}"
-			-D "Android_AAPT_COMMAND=${Android_AAPT_COMMAND}"
+			-D "Android_PLATFORMS_DIR=${Android_PlatformsDir}"
+			-D "Android_BUILD_TOOLS_DIR=${Android_BuildToolsDir}"
+			"--build-tools-file=${build_tools_file}"
 			-P "${Android_GENERATE_RESOURCE_PACKAGE_SCRIPT}"
 		DEPENDS
 			"${Android_GENERATE_RESOURCE_PACKAGE_SCRIPT}"
-			"${_resource_package_files_target}"
-			"${_manifest_file}"
+			"${resource_package_files_target}"
+			"${manifest_file}"
+			"${build_tools_file}"
 			${a_DEPENDS}
 			${a_RESOURCE_DEPENDS}
 	)
@@ -521,7 +613,7 @@ function(android_add_package TARGET)
 			-D "Java_JAVA_EXECUTABLE=${JavaTools_JAVA_EXECUTABLE}"
 			-D "Flat_ScriptsDir=${Flat_ScriptsDir}"
 			-D "Android_SCRIPT_DIR=${Android_SCRIPT_DIR}"
-			-D "Android_SDKLIB_JAR=${Android_SDKLIB_JAR}"
+			-D "Android_SDKLIB_JAR=${Android_SdklibJar}"
 			-P "${Android_GENERATE_APK_PACKAGE_SCRIPT}"
 		DEPENDS
 			"${Android_GENERATE_APK_PACKAGE_SCRIPT}"
