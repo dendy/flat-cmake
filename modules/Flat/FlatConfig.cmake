@@ -38,6 +38,7 @@ flat_register_source_suffixes("h;hpp;hxx" HEADERS)
 flat_register_source_suffixes("c;cpp;cxx" SOURCES)
 flat_register_source_suffixes("ui" FORMS)
 flat_register_source_suffixes("qrc" RESOURCES)
+flat_register_source_suffixes("qml" QML)
 
 
 function(flat_get_file_name_and_suffix FILE NAME_VAR SUFFIX_VAR)
@@ -65,6 +66,7 @@ endfunction()
 #   *.m *.mm    - ${PREFIX}_SOURCES and ${PREFIX}_OBJC_SOURCES
 #   *.ui        - ${PREFIX}_FORMS
 #   *.qrc       - ${PREFIX}_RESOURCES
+#   *.qml       - ${PREFIX}_QML
 
 function(flat_add_sources)
 	set(state "listing-sources")
