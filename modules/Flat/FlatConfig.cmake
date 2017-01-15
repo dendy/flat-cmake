@@ -1168,15 +1168,7 @@ endfunction()
 
 # config
 function(_flat_config_exec)
-	get_filename_component(root_dir "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
-
-	foreach (component ${Flat_FIND_COMPONENTS})
-		set(target Flat_${component})
-		if (NOT TARGET ${target})
-			string(TOLOWER "${component}" component_dirname)
-			add_subdirectory("${root_dir}/${component_dirname}/cmake" "${component_dirname}")
-		endif()
-	endforeach()
+	#TODO: Import existing components.
 endfunction()
 
 _flat_config_exec()
