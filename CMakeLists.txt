@@ -18,7 +18,8 @@ function(_flat_exec)
 
 		# collect other files
 		file(GLOB_RECURSE other_interface_files LIST_DIRECTORIES false
-			"${root_dir}/${module_lower}/include/Flat/${module}/*.h")
+			"${root_dir}/${module_lower}/include/Flat/${module}/*.h"
+			"${root_dir}/${module_lower}/cpp/*.h")
 		if (other_interface_files)
 			list(APPEND other_files ${other_interface_files})
 		endif()
@@ -29,7 +30,9 @@ function(_flat_exec)
 		endif()
 	endforeach()
 
-	add_custom_target(Flat_OtherFiles SOURCES ${other_files})
+	file(GLOB other_scripts "${Flat_DIR}/*.py")
+
+	add_custom_target(Flat_OtherFiles SOURCES ${other_files} ${other_scripts})
 endfunction()
 
 _flat_exec()

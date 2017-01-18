@@ -15,6 +15,7 @@ set(Flat_CollectFilesScript "${CMAKE_CURRENT_LIST_DIR}/collect-files.py")
 set(Flat_ReconfigureCMakeScript "${CMAKE_CURRENT_LIST_DIR}/reconfigure-cmake.py")
 set(Flat_GenerateQrcScript "${CMAKE_CURRENT_LIST_DIR}/generate-qrc.py")
 set(Flat_GenerateQmldirLoaderScript "${CMAKE_CURRENT_LIST_DIR}/generate-qmldir-loader.py")
+set(Flat_GeneratePchScript "${CMAKE_CURRENT_LIST_DIR}/generate-pch.py")
 
 
 # sources
@@ -1163,6 +1164,215 @@ function(flat_add_qrc TARGET CPP_FILE_VAR PATH PREFIX)
 	)
 
 	set(${CPP_FILE_VAR} "${cpp_file}" PARENT_SCOPE)
+endfunction()
+
+
+function(_flat_get_target_output_directories TARGET INTERFACE_DIRECTORY RUNTIME_DIRECTORY)
+	get_target_property(target_type ${TARGET} TYPE)
+
+	if ("${target_type}" STREQUAL STATIC_LIBRARY)
+		get_target_property(target_interface_output_dir ${TARGET} ARCHIVE_OUTPUT_DIRECTORY)
+		if (NOT target_interface_output_dir)
+			set(target_interface_output_dir "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}")
+		endif()
+
+		set(${INTERFACE_DIRECTORY} "${target_interface_output_dir}" PARENT_SCOPE)
+		set(${RUNTIME_DIRECTORY} "" PARENT_SCOPE)
+	elseif ("${target_type}" STREQUAL SHARED_LIBRARY OR "${target_type}" STREQUAL EXECUTABLE)
+		if ( WN32)
+			get_target_property(target_runtime_output_dir ${TARGET} RUNTIME_OUTPUT_DIRECTORY)
+			if (NOT target_runtime_output_dir)
+				set(target_runtime_output_dir "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+			endif()
+			if (NOT target_runtime_output_dir)
+				set(target_runtime_output_dir "${CMAKE_CURRENT_BINARY_DIR}")
+			endif()
+
+			get_target_property(target_interface_output_dir ${TARGET} ARCHIVE_OUTPUT_DIRECTORY)
+			if (NOT target_interface_output_dir)
+				set(target_interface_output_dir "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}")
+			endif()
+			if (NOT target_interface_output_dir)
+				set(target_interface_output_dir "${CMAKE_CURRENT_BINARY_DIR}")
+			endif()
+		else ()
+			get_target_property(target_runtime_output_dir ${TARGET} LIBRARY_OUTPUT_DIRECTORY)
+			if (NOT target_runtime_output_dir)
+				set(target_runtime_output_dir "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+			endif()
+
+			set(target_interface_output_dir "${target_runtime_output_dir}")
+		endif()
+
+		set(${INTERFACE_DIRECTORY} "${target_interface_output_dir}" PARENT_SCOPE)
+		set(${RUNTIME_DIRECTORY} "${target_runtime_output_dir}" PARENT_SCOPE)
+	else()
+		message(FATAL_ERROR "Resolving output directories allowed only for static, shared libraries and executables")
+	endif()
+endfunction()
+
+
+# Add precompiled headers support to the target.
+#
+# Usage:
+#   flat_precompile_headers(TARGET PRECOMPILED_HEADER [source1 source2 ...])
+#
+# Arguments:
+#   TARGET             - target to add precompiled headers support to
+#   PRECOMPILED_HEADER - path to header to precompile
+#
+# Example:
+#   add_executable(myapp ...)
+#   flat_precompile_headers(myapp precompiled_headers.h)
+
+function(flat_precompile_headers TARGET PRECOMPILED_HEADER)
+	if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+		set(is_clang YES)
+	else()
+		set(is_clang NO)
+	endif()
+
+	set(extra_flags)
+
+	# build type as suffix to cmake variables
+	string(TOUPPER "${CMAKE_BUILD_TYPE}" build_type)
+
+	# build type flags
+	if (CMAKE_CXX_FLAGS)
+		list(APPEND extra_flags ${CMAKE_CXX_FLAGS})
+	endif()
+	if (build_type AND CMAKE_CXX_FLAGS_${build_type})
+		list(APPEND extra_flags ${CMAKE_CXX_FLAGS_${build_type}})
+	endif()
+
+	get_filename_component(pch_name "${PRECOMPILED_HEADER}" NAME)
+	get_filename_component(pch_path "${PRECOMPILED_HEADER}" ABSOLUTE)
+
+	# file names
+	get_filename_component(pch_file_dir "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}_pch" ABSOLUTE)
+
+	if (MSVC OR is_clang)
+		set(pch_output_dir "${pch_file_dir}")
+		set(pch_include "${pch_output_dir}/precompiled.pch")
+		set(pch_file_path "${pch_include}")
+	endif()
+	if (CMAKE_COMPILER_IS_GNUCXX)
+		set(pch_output_dir "${pch_file_dir}")
+		set(pch_include "${pch_name}")
+		set(pch_file_path "${pch_output_dir}/${pch_include}.gch")
+		file(GENERATE OUTPUT "${pch_output_dir}/${pch_include}" CONTENT "#error \"PCH is not used\"\n")
+	endif()
+
+	# MSVC requires additional object file
+	if (MSVC)
+		set(pch_object_file_path "${pch_file_dir}/precompiled.obj")
+	endif()
+
+	if (APPLE)
+		# add min deployment version
+		list(APPEND extra_flags -mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET})
+
+		# add architectures
+		get_target_property(archs ${TARGET} OSX_ARCHITECTURES)
+		foreach (arch ${_archs})
+			list(APPEND extra_flags -arch ${_arch})
+		endforeach()
+
+		# add sysroot
+		list(APPEND extra_flags -isysroot "${CMAKE_OSX_SYSROOT}")
+	endif()
+
+	# generate precompiled header
+	if (MSVC)
+		#HACK: Don't know how to obtain target's pdb file.
+		get_target_property(target_location ${TARGET} ${build_type}_LOCATION)
+		get_filename_component(target_filename "${target_location}" NAME)
+		get_filename_component(target_filename_we "${target_filename}" NAME_WE)
+
+		_flat_get_target_output_directories(${TARGET} interface_directory runtime_directory)
+
+		get_target_property(target_type ${TARGET} TYPE)
+		if (target_type STREQUAL EXECUTABLE)
+			set(target_pdb_directory "${runtime_directory}")
+		elseif (target_type STREQUAL STATIC_LIBRARY)
+			set(target_pdb_directory "${interface_directory}")
+		else()
+			set(target_pdb_directory "${runtime_directory}")
+		endif()
+
+		set(target_pdb "${target_pdb_directory}/${target_filename_we}.pdb")
+
+		#TODO: Use VERBATIM?
+		add_custom_command(
+			OUTPUT "${pch_object_file_path}"
+			COMMAND "${CMAKE_COMMAND}" -E remove -f "${pch_object_file_path}"
+			COMMAND "${CMAKE_COMMAND}" -E remove -f "${target_pdb}"
+			COMMAND "${CMAKE_COMMAND}" -E remove -f "${pch_file_path}"
+			COMMAND "${CMAKE_COMMAND}" -E make_directory "${pch_file_dir}"
+			COMMAND "${CMAKE_CXX_COMPILER}" ${include_flags} ${compile_flags} ${definition_flags} ${extra_flags}
+				-c /Yc /Fp${pch_file_path} /Fo${pch_object_file_path} /Fd${target_pdb} /TP "${ph_absolute_path}"
+			IMPLICIT_DEPENDS CXX "${pch_absolute_path}"
+			VERBATIM
+		)
+#		target_link_libraries( ${TARGET} "${_pch_object_file_path}" )
+	elseif (CMAKE_COMPILER_IS_GNUCXX OR is_clang)
+		add_custom_command(
+			OUTPUT "${pch_file_path}"
+			COMMAND "${CMAKE_COMMAND}" -E make_directory "${pch_output_dir}"
+			COMMAND "${PYTHON_EXECUTABLE}" "${Flat_GeneratePchScript}"
+				"--compiler=${CMAKE_CXX_COMPILER}"
+				"--compiler-id=${CMAKE_CXX_COMPILER_ID}"
+				"--include-dirs=$<TARGET_PROPERTY:${TARGET},INCLUDE_DIRECTORIES>"
+				"--compile-options=$<TARGET_PROPERTY:${TARGET},COMPILE_OPTIONS>"
+				"--compile-flags=$<TARGET_PROPERTY:${TARGET},COMPILE_FLAGS>"
+				"--compile-definitions=$<TARGET_PROPERTY:${TARGET},COMPILE_DEFINITIONS>"
+				"--pic=$<BOOL:$<TARGET_PROPERTY:${TARGET},POSITION_INDEPENDENT_CODE>>"
+				"--type=$<TARGET_PROPERTY:${TARGET},TYPE>"
+				"--pic-flags=${CMAKE_CXX_COMPILE_OPTIONS_PIC}"
+				"--pie-flags=${CMAKE_CXX_COMPILE_OPTIONS_PIE}"
+				"--extra-flags=${extra_flags}"
+				"--pch=${pch_path}"
+				"--output=${pch_file_path}"
+			IMPLICIT_DEPENDS CXX "${pch_path}"
+			DEPENDS "${Flat_GeneratePchScript}"
+			VERBATIM
+		)
+	endif()
+
+	# adding global compile flags to the target
+	# if no sources was given than PrecompiledHeader file will not be created, so we should skip dependency
+	set(cpp_sources)
+	get_property(sources TARGET ${TARGET} PROPERTY SOURCES)
+	foreach(source ${sources})
+		if (source MATCHES "\\.\(cc|cxx|cpp|c\)$")
+			list(APPEND cpp_sources "${source}")
+		endif()
+	endforeach()
+
+	foreach (source_file ${cpp_sources})
+		get_source_file_property(compile_flags "${source_file}" COMPILE_FLAGS)
+
+		if (NOT compile_flags)
+			set(compile_flags)
+		endif()
+
+		if (MSVC)
+			set_source_files_properties("${source_file}" PROPERTIES
+				COMPILE_FLAGS "${compile_flags} -FI${PRECOMPILED_HEADER} -Yu${PRECOMPILED_HEADER} -Fp${pch_file_path}"
+				OBJECT_DEPENDS "${pch_object_file_path}"
+			)
+		elseif (CMAKE_COMPILER_IS_GNUCXX)
+			set_source_files_properties("${source_file}" PROPERTIES
+				COMPILE_FLAGS "${compile_flags} -Winvalid-pch -I${pch_output_dir} -include ${pch_include}"
+				OBJECT_DEPENDS "${pch_file_path}"
+			)
+		elseif (is_clang)
+			set_source_files_properties("${source_file}" PROPERTIES
+				COMPILE_FLAGS "${compile_flags} -include-pch ${pch_file_path}"
+				OBJECT_DEPENDS "${pch_file_path}"
+			)
+		endif()
+	endforeach()
 endfunction()
 
 
