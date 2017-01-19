@@ -15,6 +15,9 @@ set(Flat_CollectFilesScript "${CMAKE_CURRENT_LIST_DIR}/collect-files.py")
 set(Flat_ReconfigureCMakeScript "${CMAKE_CURRENT_LIST_DIR}/reconfigure-cmake.py")
 set(Flat_GenerateQrcScript "${CMAKE_CURRENT_LIST_DIR}/generate-qrc.py")
 set(Flat_GenerateQmldirLoaderScript "${CMAKE_CURRENT_LIST_DIR}/generate-qmldir-loader.py")
+set(Flat_CheckPchDepsScript "${CMAKE_CURRENT_LIST_DIR}/check-pch-deps.py")
+set(Flat_GeneratePchFlagsScript "${CMAKE_CURRENT_LIST_DIR}/generate-pch-flags.py")
+set(Flat_GeneratePchDepsScript "${CMAKE_CURRENT_LIST_DIR}/generate-pch-deps.py")
 set(Flat_GeneratePchScript "${CMAKE_CURRENT_LIST_DIR}/generate-pch.py")
 
 
@@ -1246,7 +1249,7 @@ function(flat_precompile_headers TARGET PRECOMPILED_HEADER)
 	endif()
 
 	get_filename_component(pch_name "${PRECOMPILED_HEADER}" NAME)
-	get_filename_component(pch_path "${PRECOMPILED_HEADER}" ABSOLUTE)
+	get_filename_component(pch_file "${PRECOMPILED_HEADER}" ABSOLUTE)
 
 	# file names
 	get_filename_component(pch_file_dir "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}_pch" ABSOLUTE)
@@ -1262,6 +1265,10 @@ function(flat_precompile_headers TARGET PRECOMPILED_HEADER)
 		set(pch_file_path "${pch_output_dir}/${pch_include}.gch")
 		file(GENERATE OUTPUT "${pch_output_dir}/${pch_include}" CONTENT "#error \"PCH is not used\"\n")
 	endif()
+
+	set(pch_flags_file "${pch_file_dir}/flags")
+	set(pch_deps_file "${pch_file_dir}/deps")
+	set(pch_deps_target "${pch_file_dir}/deps.target")
 
 	# MSVC requires additional object file
 	if (MSVC)
@@ -1303,24 +1310,34 @@ function(flat_precompile_headers TARGET PRECOMPILED_HEADER)
 		set(target_pdb "${target_pdb_directory}/${target_filename_we}.pdb")
 
 		#TODO: Use VERBATIM?
-		add_custom_command(
-			OUTPUT "${pch_object_file_path}"
-			COMMAND "${CMAKE_COMMAND}" -E remove -f "${pch_object_file_path}"
-			COMMAND "${CMAKE_COMMAND}" -E remove -f "${target_pdb}"
-			COMMAND "${CMAKE_COMMAND}" -E remove -f "${pch_file_path}"
-			COMMAND "${CMAKE_COMMAND}" -E make_directory "${pch_file_dir}"
-			COMMAND "${CMAKE_CXX_COMPILER}" ${include_flags} ${compile_flags} ${definition_flags} ${extra_flags}
-				-c /Yc /Fp${pch_file_path} /Fo${pch_object_file_path} /Fd${target_pdb} /TP "${ph_absolute_path}"
-			IMPLICIT_DEPENDS CXX "${pch_absolute_path}"
-			VERBATIM
-		)
+#		add_custom_command(
+#			OUTPUT "${pch_object_file_path}"
+#			COMMAND "${CMAKE_COMMAND}" -E remove -f "${pch_object_file_path}"
+#			COMMAND "${CMAKE_COMMAND}" -E remove -f "${target_pdb}"
+#			COMMAND "${CMAKE_COMMAND}" -E remove -f "${pch_file_path}"
+#			COMMAND "${CMAKE_COMMAND}" -E make_directory "${pch_file_dir}"
+#			COMMAND "${CMAKE_CXX_COMPILER}" ${include_flags} ${compile_flags} ${definition_flags} ${extra_flags}
+#				-c /Yc /Fp${pch_file_path} /Fo${pch_object_file_path} /Fd${target_pdb} /TP "${ph_absolute_path}"
+#			IMPLICIT_DEPENDS CXX "${pch_absolute_path}"
+#			VERBATIM
+#		)
 #		target_link_libraries( ${TARGET} "${_pch_object_file_path}" )
 	elseif (CMAKE_COMPILER_IS_GNUCXX OR is_clang)
-		add_custom_command(
-			OUTPUT "${pch_file_path}"
+		add_custom_target(${TARGET}_CheckPchDeps
 			COMMAND "${CMAKE_COMMAND}" -E make_directory "${pch_output_dir}"
-			COMMAND "${PYTHON_EXECUTABLE}" "${Flat_GeneratePchScript}"
-				"--compiler=${CMAKE_CXX_COMPILER}"
+			COMMAND "${PYTHON_EXECUTABLE}" "${Flat_CheckPchDepsScript}"
+				"--deps=${pch_deps_file}"
+				"--pch=${pch_file}"
+				"--target=${pch_deps_target}"
+			BYPRODUCTS "${pch_deps_target}"
+			DEPENDS "${pch_file}" "${Flat_CheckPchDepsScript}"
+			VERBATIM
+		)
+		add_dependencies(${TARGET} ${TARGET}_CheckPchDeps)
+
+		add_custom_command(
+			OUTPUT "${pch_flags_file}"
+			COMMAND "${PYTHON_EXECUTABLE}" "${Flat_GeneratePchFlagsScript}"
 				"--compiler-id=${CMAKE_CXX_COMPILER_ID}"
 				"--include-dirs=$<TARGET_PROPERTY:${TARGET},INCLUDE_DIRECTORIES>"
 				"--compile-options=$<TARGET_PROPERTY:${TARGET},COMPILE_OPTIONS>"
@@ -1331,10 +1348,32 @@ function(flat_precompile_headers TARGET PRECOMPILED_HEADER)
 				"--pic-flags=${CMAKE_CXX_COMPILE_OPTIONS_PIC}"
 				"--pie-flags=${CMAKE_CXX_COMPILE_OPTIONS_PIE}"
 				"--extra-flags=${extra_flags}"
-				"--pch=${pch_path}"
+				"--pch=${pch_file}"
+				"--output=${pch_flags_file}"
+			DEPENDS "${Flat_GeneratePchFlagsScript}"
+			VERBATIM
+		)
+
+		add_custom_command(
+			OUTPUT "${pch_deps_file}"
+			COMMAND "${PYTHON_EXECUTABLE}" "${Flat_GeneratePchDepsScript}"
+				"--output=${pch_deps_file}"
+				"--compiler=${CMAKE_CXX_COMPILER}"
+				"--flags-file=${pch_flags_file}"
+				"--pch-file=${pch_file}"
+			DEPENDS "${pch_deps_target}" "${pch_flags_file}" "${Flat_GeneratePchDepsScript}"
+			VERBATIM
+		)
+
+		add_custom_command(
+			OUTPUT "${pch_file_path}"
+			COMMAND "${PYTHON_EXECUTABLE}" "${Flat_GeneratePchScript}"
+				"--compiler=${CMAKE_CXX_COMPILER}"
+				"--compiler-id=${CMAKE_CXX_COMPILER_ID}"
+				"--flags-file=${pch_flags_file}"
+				"--pch=${pch_file}"
 				"--output=${pch_file_path}"
-			IMPLICIT_DEPENDS CXX "${pch_path}"
-			DEPENDS "${Flat_GeneratePchScript}"
+			DEPENDS "${pch_deps_file}" "${Flat_GeneratePchScript}"
 			VERBATIM
 		)
 	endif()
