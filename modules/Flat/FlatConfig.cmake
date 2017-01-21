@@ -1372,6 +1372,7 @@ function(flat_precompile_headers TARGET PRECOMPILED_HEADER)
 				"--compiler-id=${CMAKE_CXX_COMPILER_ID}"
 				"--flags-file=${pch_flags_file}"
 				"--pch=${pch_file}"
+				"--compile-cli=${CMAKE_CXX_COMPILE_OBJECT}"
 				"--output=${pch_file_path}"
 			DEPENDS "${pch_deps_file}" "${Flat_GeneratePchScript}"
 			VERBATIM
