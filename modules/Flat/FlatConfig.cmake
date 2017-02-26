@@ -1361,6 +1361,7 @@ function(flat_precompile_headers TARGET PRECOMPILED_HEADER)
 				"--compiler=${CMAKE_CXX_COMPILER}"
 				"--flags-file=${pch_flags_file}"
 				"--pch-file=${pch_file}"
+				"--compile-cli=${CMAKE_CXX_COMPILE_OBJECT}"
 			DEPENDS "${pch_deps_target}" "${pch_flags_file}" "${Flat_GeneratePchDepsScript}"
 			VERBATIM
 		)
