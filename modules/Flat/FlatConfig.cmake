@@ -1239,13 +1239,16 @@ function(flat_precompile_headers TARGET PRECOMPILED_HEADER)
 
 	# build type as suffix to cmake variables
 	string(TOUPPER "${CMAKE_BUILD_TYPE}" build_type)
-
 	# build type flags
 	if (CMAKE_CXX_FLAGS)
-		list(APPEND extra_flags ${CMAKE_CXX_FLAGS})
+		set(extra_flags_separated ${CMAKE_CXX_FLAGS})
+		separate_arguments(extra_flags_separated)
+		list(APPEND extra_flags ${extra_flags_separated})
 	endif()
 	if (build_type AND CMAKE_CXX_FLAGS_${build_type})
-		list(APPEND extra_flags ${CMAKE_CXX_FLAGS_${build_type}})
+		set(extra_flags_separated ${CMAKE_CXX_FLAGS_${build_type}})
+		separate_arguments(extra_flags_separated)
+		list(APPEND extra_flags ${extra_flags_separated})
 	endif()
 
 	get_filename_component(pch_name "${PRECOMPILED_HEADER}" NAME)
