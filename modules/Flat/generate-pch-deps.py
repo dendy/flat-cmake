@@ -16,13 +16,11 @@ with open(args.flags_file, 'r') as f:
 
 make_deps_file = args.output + '.make'
 
-#<CMAKE_CXX_COMPILER> <DEFINES> <INCLUDES> <FLAGS> -UFLAT_DEBUG_DISABLE_MACROS -o <OBJECT> -c <SOURCE>
-
 cli_values = {
 	'<CMAKE_CXX_COMPILER>': [args.compiler],
 	'<DEFINES>': None,
 	'<INCLUDES>': None,
-	'<FLAGS>': pch_args + ['-UFLAT_DEBUG_DISABLE_MACROS', '-x', 'c++-header', '-MM'],
+	'<FLAGS>': pch_args + ['-x', 'c++-header', '-MM'],
 	'<OBJECT>': [make_deps_file],
 	'<SOURCE>': [args.pch_file]
 }
