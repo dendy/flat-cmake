@@ -1229,6 +1229,11 @@ endfunction()
 #   flat_precompile_headers(myapp precompiled_headers.h)
 
 function(flat_precompile_headers TARGET PRECOMPILED_HEADER)
+	if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+		# FIXME: Implement PCH for MSVC
+		return()
+	endif()
+
 	if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 		set(is_clang YES)
 	else()
