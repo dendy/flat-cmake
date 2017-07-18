@@ -22,7 +22,7 @@ set(Flat_GeneratePchScript "${CMAKE_CURRENT_LIST_DIR}/generate-pch.py")
 
 
 # sources
-set(Flat_DefaultSourceSuffixes h cpp)
+set(Flat_DefaultSourceSuffixes "h,hpp" "cpp")
 
 set(_Flat_SourceLists)
 
@@ -126,12 +126,26 @@ function(flat_add_sources)
 		endif()
 
 		foreach ( suffix ${suffixes} )
-			set(file "${abs_dir}/${file_name}.${suffix}")
-			if ( NOT EXISTS "${file}" )
-				message(FATAL_ERROR "File not exists: ${file}")
+			set(found_suffix)
+			set(found_file)
+			string(REPLACE "," ";" suffix_list "${suffix}")
+			foreach (s ${suffix_list})
+				set(f "${abs_dir}/${file_name}.${s}")
+				if (EXISTS "${f}")
+					if (found_file)
+						message(FATAL_ERROR "More than 1 file found: ${file_name}")
+					endif()
+					set(found_file "${f}")
+					set(found_suffix "${s}")
+				endif()
+			endforeach()
+
+			if (NOT found_file)
+				message(FATAL_ERROR "File not found: ${file_name}")
 			endif()
-			foreach ( list ${_Flat_SourceSuffixLists_${suffix}} )
-				list(APPEND list_${list} "${file}")
+
+			foreach ( list ${_Flat_SourceSuffixLists_${found_suffix}} )
+				list(APPEND list_${list} "${found_file}")
 			endforeach()
 		endforeach()
 	endforeach()
