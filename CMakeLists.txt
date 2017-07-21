@@ -6,9 +6,17 @@ function(_flat_exec)
 
 	set(Flat_DIR "${CMAKE_CURRENT_SOURCE_DIR}/modules/Flat")
 
+	set(Flat_Static NO CACHE BOOL "Build Flat libs statically")
+
 	set(modules Core Debug Utils Link Game)
 
 	set(other_files)
+
+	if (Flat_Static)
+		set(flat_library_type STATIC)
+	else()
+		set(flat_library_type SHARED)
+	endif()
 
 	foreach (module ${modules})
 		set(target Flat_${module})
