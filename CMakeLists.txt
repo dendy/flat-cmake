@@ -22,6 +22,11 @@ function(_flat_exec)
 		set(target Flat_${module})
 
 		string(TOLOWER "${module}" module_lower)
+
+		if (NOT IS_DIRECTORY "${root_dir}/${module_lower}")
+			continue()
+		endif()
+
 		add_subdirectory("${root_dir}/${module_lower}/cmake" "${module_lower}")
 
 		# collect other files
