@@ -1150,9 +1150,16 @@ endfunction()
 
 
 function(flat_collect_files TARGET OUTPUT)
+	cmake_parse_arguments(f "DEPEND_ON_FILES" "" "" ${ARGN})
+
+	set(args)
+	if (f_DEPEND_ON_FILES)
+		list(APPEND args --depend-on-files)
+	endif()
+
 	add_custom_target(${TARGET}
 		COMMAND
-			${PYTHON_EXECUTABLE} "${Flat_CollectFilesScript}" "${OUTPUT}" --paths ${ARGN}
+			${PYTHON_EXECUTABLE} "${Flat_CollectFilesScript}" "${OUTPUT}" ${args} --paths ${ARGN}
 		BYPRODUCTS
 			"${OUTPUT}"
 		DEPENDS
@@ -1195,7 +1202,7 @@ function(flat_add_qrc TARGET CPP_FILE_VAR PATH PREFIX)
 	set(qrc_file "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.qrc")
 	set(cpp_file "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.cpp")
 
-	flat_collect_files(${TARGET} "${files_file}" ${ARGN})
+	flat_collect_files(${TARGET} "${files_file}" DEPEND_ON_FILES ${ARGN})
 
 	add_custom_command(
 		OUTPUT "${qrc_file}"
