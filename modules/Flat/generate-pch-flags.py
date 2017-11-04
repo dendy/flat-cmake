@@ -33,7 +33,7 @@ if args.pic == '1':
 
 pch_args = list(collections.OrderedDict.fromkeys(pch_args))
 
-if args.compiler_id == 'GNU' or args.compiler_id == 'Clang':
+if args.compiler_id == 'GNU' or args.compiler_id == 'Clang' or args.compiler_id == 'AppleClang':
 	pass
 else:
 	print('Invalid compiler id: ' + args.compiler_id, file=sys.stderr)

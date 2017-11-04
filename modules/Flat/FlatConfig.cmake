@@ -1287,7 +1287,7 @@ function(flat_precompile_headers TARGET PRECOMPILED_HEADER)
 		return()
 	endif()
 
-	if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
 		set(is_clang YES)
 	else()
 		set(is_clang NO)
@@ -1338,7 +1338,9 @@ function(flat_precompile_headers TARGET PRECOMPILED_HEADER)
 
 	if (APPLE)
 		# add min deployment version
-		list(APPEND extra_flags -mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET})
+		if (CMAKE_OSX_DEPLOYMENT_TARGET)
+			list(APPEND extra_flags -mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET})
+		endif()
 
 		# add architectures
 		get_target_property(archs ${TARGET} OSX_ARCHITECTURES)
@@ -1347,7 +1349,9 @@ function(flat_precompile_headers TARGET PRECOMPILED_HEADER)
 		endforeach()
 
 		# add sysroot
-		list(APPEND extra_flags -isysroot "${CMAKE_OSX_SYSROOT}")
+		if (CMAKE_OSX_SYSROOT)
+			list(APPEND extra_flags -isysroot "${CMAKE_OSX_SYSROOT}")
+		endif()
 	endif()
 
 	# generate precompiled header

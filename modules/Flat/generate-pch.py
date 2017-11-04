@@ -16,7 +16,7 @@ args = parser.parse_args()
 def filter(s):
 	return [v for v in [v.strip() for v in s.split(';')] if v]
 
-if args.compiler_id == 'GNU' or args.compiler_id == 'Clang':
+if args.compiler_id == 'GNU' or args.compiler_id == 'Clang' or args.compiler_id == 'AppleClang':
 	pass
 else:
 	print('Invalid compiler id: ' + args.compiler_id, file=sys.stderr)
