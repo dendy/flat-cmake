@@ -8,7 +8,13 @@ function(_flat_exec)
 
 	set(Flat_Static NO CACHE BOOL "Build Flat libs statically")
 
-	set(modules Core Debug Utils Link Game)
+	if (NOT Flat_Modules OR "${Flat_Modules}" STREQUAL ALL)
+		set(modules Core Debug Utils Link Game)
+	elseif ("${Flat_Modules}" STREQUAL NONE)
+		set(modules)
+	else()
+		set(modules ${Flat_Modules})
+	endif()
 
 	set(other_files)
 
