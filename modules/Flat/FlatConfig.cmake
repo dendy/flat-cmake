@@ -219,7 +219,8 @@ function(flat_add_target_rpath TARGET)
 				if ( lib_imported )
 					get_target_property(lib_location ${lib} LOCATION)
 					get_filename_component(lib_dir "${lib_location}" DIRECTORY)
-					set_property(TARGET ${TARGET} APPEND_STRING PROPERTY LINK_FLAGS " -Wl,-rpath-link,${lib_dir}")
+					set_property(TARGET ${TARGET} APPEND_STRING PROPERTY
+							LINK_FLAGS " -Wl,-rpath-link,${lib_dir}")
 				endif()
 			endif()
 		endforeach()
@@ -424,7 +425,8 @@ function(flat_sync TARGET SOURCE)
 
 		if ( ok )
 			if ( sync_delete )
-				_flat_add_sync_check_conflict(${TARGET} "${sync_destination}" "${sync_DESTINATION}" ok)
+				_flat_add_sync_check_conflict(${TARGET} "${sync_destination}"
+						"${sync_DESTINATION}" ok)
 			endif()
 		endif()
 
@@ -595,10 +597,14 @@ function(flat_deploy_qt5 TARGET)
 	else()
 		set(qt_libexec_var QT_INSTALL_LIBS)
 	endif()
-	execute_process(COMMAND "${qmake_location}" "-query" "${qt_libexec_var}" OUTPUT_VARIABLE qt5_libexecs_dir)
-	execute_process(COMMAND "${qmake_location}" "-query" "QT_INSTALL_LIBS" OUTPUT_VARIABLE qt5_libs_dir)
-	execute_process(COMMAND "${qmake_location}" "-query" "QT_INSTALL_PLUGINS" OUTPUT_VARIABLE qt5_plugins_dir)
-	execute_process(COMMAND "${qmake_location}" "-query" "QT_INSTALL_QML" OUTPUT_VARIABLE qt5_qml_dir)
+	execute_process(COMMAND "${qmake_location}" "-query" "${qt_libexec_var}"
+			OUTPUT_VARIABLE qt5_libexecs_dir)
+	execute_process(COMMAND "${qmake_location}" "-query" "QT_INSTALL_LIBS"
+			OUTPUT_VARIABLE qt5_libs_dir)
+	execute_process(COMMAND "${qmake_location}" "-query" "QT_INSTALL_PLUGINS"
+			OUTPUT_VARIABLE qt5_plugins_dir)
+	execute_process(COMMAND "${qmake_location}" "-query" "QT_INSTALL_QML"
+			OUTPUT_VARIABLE qt5_qml_dir)
 	string(STRIP "${qt5_libexecs_dir}" qt5_libexecs_dir)
 	string(STRIP "${qt5_libs_dir}" qt5_libs_dir)
 	string(STRIP "${qt5_plugins_dir}" qt5_plugins_dir)
@@ -606,7 +612,8 @@ function(flat_deploy_qt5 TARGET)
 
 	if ( "${qt5_system}" STREQUAL "Windows" AND NOT "${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Windows" )
 		# cross building with MinGW
-		execute_process(COMMAND "${CMAKE_CXX_COMPILER}" "-dumpmachine" OUTPUT_VARIABLE compiler_machine)
+		execute_process(COMMAND "${CMAKE_CXX_COMPILER}" "-dumpmachine"
+				OUTPUT_VARIABLE compiler_machine)
 		string(STRIP "${compiler_machine}" compiler_machine)
 	endif()
 
@@ -641,7 +648,8 @@ function(flat_deploy_qt5 TARGET)
 			else()
 				set(icu_version "52")
 			endif()
-			foreach ( lib "icuuc${icu_version}" "icuin${icu_version}" "icudt${icu_version}" "libgcc_s_dw2-1" "libwinpthread-1" "libstdc++-6" )
+			foreach ( lib "icuuc${icu_version}" "icuin${icu_version}" "icudt${icu_version}"
+						"libgcc_s_dw2-1" "libwinpthread-1" "libstdc++-6" )
 				list(APPEND runtime_libs "${qt5_libexecs_dir}/${lib}.dll")
 			endforeach()
 		else()
@@ -724,12 +732,15 @@ function(flat_deploy_qt5 TARGET)
 
 	# runtime libs
 	foreach ( runtime_lib ${runtime_libs} )
-		flat_sync(${runtime_target} "${runtime_lib}" COPY_SYMLINKS DESTINATION "${runtime_destination}")
+		flat_sync(${runtime_target} "${runtime_lib}"
+				COPY_SYMLINKS DESTINATION "${runtime_destination}")
 	endforeach()
 
 	# Qt5 libs
 	foreach ( module ${f_MODULES} )
-		flat_sync(${runtime_target} "${qt5_libexecs_dir}/${lib_prefix}Qt5${module}${build_type_suffix}${qt5_lib_suffix}" COPY_SYMLINKS DESTINATION "${runtime_destination}")
+		flat_sync(${runtime_target}
+				"${qt5_libexecs_dir}/${lib_prefix}Qt5${module}${build_type_suffix}${qt5_lib_suffix}"
+				COPY_SYMLINKS DESTINATION "${runtime_destination}")
 	endforeach()
 
 	# Qt5 plugins
@@ -742,7 +753,9 @@ function(flat_deploy_qt5 TARGET)
 		if ( plugin_subdir )
 			set(plugin_subdir "${plugin_subdir}/")
 		endif()
-		flat_sync(${share_target} "${qt5_plugins_dir}/${plugin_directory}/${plugin_subdir}${lib_prefix}${plugin_name}${build_type_suffix}${lib_suffix}" COPY_SYMLINKS DESTINATION "plugins/${plugin_directory}/${plugin_subdir}")
+		flat_sync(${share_target}
+				"${qt5_plugins_dir}/${plugin_directory}/${plugin_subdir}${lib_prefix}${plugin_name}${build_type_suffix}${lib_suffix}"
+				COPY_SYMLINKS DESTINATION "plugins/${plugin_directory}/${plugin_subdir}")
 	endforeach()
 
 	# qml
@@ -969,7 +982,8 @@ function(flat_configure_cmake_project TARGET)
 	set(Python_ADDITIONAL_VERSIONS 3.5-32)
 	find_package(PythonInterp 3.5 REQUIRED)
 
-	cmake_parse_arguments(f "" "SOURCE_DIR;BUILD_DIR;GENERATOR;MAKE" "ENV;ENV_PATHS;ARGS;GIT_DIRS;DEPENDS;CLEAN_DEPENDS" ${ARGN})
+	cmake_parse_arguments(f "" "SOURCE_DIR;BUILD_DIR;GENERATOR;MAKE"
+			"ENV;ENV_PATHS;ARGS;GIT_DIRS;DEPENDS;CLEAN_DEPENDS" ${ARGN})
 
 	# vars
 	set(build_dir "${f_BUILD_DIR}")
@@ -1076,8 +1090,9 @@ function(flat_configure_cmake_project TARGET)
 
 	add_custom_command(
 		OUTPUT "${reconfigure_target}"
-		COMMAND "${PYTHON_EXECUTABLE}" "${run_script}" "${PYTHON_EXECUTABLE}" "${Flat_ReconfigureCMakeScript}"
-			"${cmake_build_dir}" "${build_file_name}" "${reconfigure_target}" --cmake "${CMAKE_COMMAND}" --deps ${f_DEPENDS}
+		COMMAND "${PYTHON_EXECUTABLE}" "${run_script}" "${PYTHON_EXECUTABLE}"
+			"${Flat_ReconfigureCMakeScript}" "${cmake_build_dir}" "${build_file_name}"
+			"${reconfigure_target}" --cmake "${CMAKE_COMMAND}" --deps ${f_DEPENDS}
 		DEPENDS "${build_file}" ${f_DEPENDS}
 	)
 
@@ -1324,7 +1339,8 @@ function(flat_precompile_headers TARGET PRECOMPILED_HEADER)
 		set(pch_output_dir "${pch_file_dir}")
 		set(pch_include "${pch_name}")
 		set(pch_file_path "${pch_output_dir}/${pch_include}.gch")
-		file(GENERATE OUTPUT "${pch_output_dir}/${pch_include}" CONTENT "#error \"PCH is not used\"\n")
+		file(GENERATE OUTPUT "${pch_output_dir}/${pch_include}"
+				CONTENT "#error \"PCH is not used\"\n")
 	endif()
 
 	set(pch_flags_file "${pch_file_dir}/flags")
@@ -1381,8 +1397,9 @@ function(flat_precompile_headers TARGET PRECOMPILED_HEADER)
 #			COMMAND "${CMAKE_COMMAND}" -E remove -f "${target_pdb}"
 #			COMMAND "${CMAKE_COMMAND}" -E remove -f "${pch_file_path}"
 #			COMMAND "${CMAKE_COMMAND}" -E make_directory "${pch_file_dir}"
-#			COMMAND "${CMAKE_CXX_COMPILER}" ${include_flags} ${compile_flags} ${definition_flags} ${extra_flags}
-#				-c /Yc /Fp${pch_file_path} /Fo${pch_object_file_path} /Fd${target_pdb} /TP "${ph_absolute_path}"
+#			COMMAND "${CMAKE_CXX_COMPILER}" ${include_flags} ${compile_flags} ${definition_flags}
+#				${extra_flags} -c /Yc /Fp${pch_file_path} /Fo${pch_object_file_path}
+#				/Fd${target_pdb} /TP "${ph_absolute_path}"
 #			IMPLICIT_DEPENDS CXX "${pch_absolute_path}"
 #			VERBATIM
 #		)
@@ -1446,7 +1463,8 @@ function(flat_precompile_headers TARGET PRECOMPILED_HEADER)
 	endif()
 
 	# adding global compile flags to the target
-	# if no sources was given than PrecompiledHeader file will not be created, so we should skip dependency
+	# if no sources was given than PrecompiledHeader file will not be created,
+	# so we should skip dependency
 	set(cpp_sources)
 	get_property(sources TARGET ${TARGET} PROPERTY SOURCES)
 	foreach(source ${sources})
@@ -1464,12 +1482,14 @@ function(flat_precompile_headers TARGET PRECOMPILED_HEADER)
 
 		if (MSVC)
 			set_source_files_properties("${source_file}" PROPERTIES
-				COMPILE_FLAGS "${compile_flags} -FI${PRECOMPILED_HEADER} -Yu${PRECOMPILED_HEADER} -Fp${pch_file_path}"
+				COMPILE_FLAGS "${compile_flags} -FI${PRECOMPILED_HEADER} -Yu${PRECOMPILED_HEADER}
+						-Fp${pch_file_path}"
 				OBJECT_DEPENDS "${pch_object_file_path}"
 			)
 		elseif (CMAKE_COMPILER_IS_GNUCXX)
 			set_source_files_properties("${source_file}" PROPERTIES
-				COMPILE_FLAGS "${compile_flags} -Winvalid-pch -I${pch_output_dir} -include ${pch_include}"
+				COMPILE_FLAGS "${compile_flags} -Winvalid-pch -I${pch_output_dir}
+						-include ${pch_include}"
 				OBJECT_DEPENDS "${pch_file_path}"
 			)
 		elseif (is_clang)
