@@ -1364,7 +1364,7 @@ function(flat_precompile_headers TARGET PRECOMPILED_HEADER)
 		# add architectures
 		get_target_property(archs ${TARGET} OSX_ARCHITECTURES)
 		foreach (arch ${_archs})
-			list(APPEND extra_flags -arch ${_arch})
+			list(APPEND extra_flags -arch ${arch})
 		endforeach()
 
 		# add sysroot
