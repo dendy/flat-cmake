@@ -11,6 +11,7 @@ if __name__ == '__main__':
 	parser.add_argument('output')
 	parser.add_argument('--paths', nargs='*', default=[])
 	parser.add_argument('--depend-on-files', dest='dependOnFiles', action='store_true')
+	parser.add_argument('--relative')
 	args = parser.parse_args()
 
 	update = False
@@ -21,14 +22,17 @@ if __name__ == '__main__':
 		except OSError:
 			update = True
 
+	def make(f):
+		return f if not args.relative else os.path.relpath(f, args.relative)
+
 	files = []
 	for path in args.paths:
 		f = glob.glob(path, recursive=True)
 		if not f:
 			if os.path.isfile(path):
-				files.append(path)
+				files.append(make(path))
 		else:
-			files += [x for x in f if os.path.isfile(x)]
+			files += [make(x) for x in f if os.path.isfile(x)]
 
 	buffer = io.StringIO()
 	for file in files:

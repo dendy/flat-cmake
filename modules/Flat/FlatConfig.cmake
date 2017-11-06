@@ -1165,11 +1165,14 @@ endfunction()
 
 
 function(flat_collect_files TARGET OUTPUT)
-	cmake_parse_arguments(f "DEPEND_ON_FILES" "" "" ${ARGN})
+	cmake_parse_arguments(f "DEPEND_ON_FILES" "RELATIVE" "" ${ARGN})
 
 	set(args)
 	if (f_DEPEND_ON_FILES)
 		list(APPEND args --depend-on-files)
+	endif()
+	if (f_RELATIVE)
+		list(APPEND args "--relative=${f_RELATIVE}")
 	endif()
 
 	add_custom_target(${TARGET}
