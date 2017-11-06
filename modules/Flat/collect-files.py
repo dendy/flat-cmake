@@ -41,9 +41,9 @@ if __name__ == '__main__':
 			with open(args.output, 'r') as f:
 				previousBuffer = f.read()
 				if previousBuffer != newBuffer:
-					update = true
+					update = True
 		except:
-			pass
+			update = True
 
 	if args.dependOnFiles and not update:
 		for file in files:
