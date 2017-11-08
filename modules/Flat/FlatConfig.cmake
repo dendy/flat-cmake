@@ -13,6 +13,7 @@ set(Flat_RunWithEnvScriptIn "${CMAKE_CURRENT_LIST_DIR}/run-with-env.py.in")
 set(Flat_CheckGitRevisionScript "${CMAKE_CURRENT_LIST_DIR}/check-git-revision.py")
 set(Flat_EraseCurrentDirScript "${CMAKE_CURRENT_LIST_DIR}/erase-current-dir.py")
 set(Flat_CollectFilesScript "${CMAKE_CURRENT_LIST_DIR}/collect-files.py")
+set(Flat_SyncDirectoryScript "${CMAKE_CURRENT_LIST_DIR}/sync-directory.py")
 set(Flat_ReconfigureCMakeScript "${CMAKE_CURRENT_LIST_DIR}/reconfigure-cmake.py")
 set(Flat_GenerateQrcScript "${CMAKE_CURRENT_LIST_DIR}/generate-qrc.py")
 set(Flat_GenerateQmldirLoaderScript "${CMAKE_CURRENT_LIST_DIR}/generate-qmldir-loader.py")
@@ -1165,7 +1166,7 @@ endfunction()
 
 
 function(flat_collect_files TARGET OUTPUT)
-	cmake_parse_arguments(f "DEPEND_ON_FILES" "RELATIVE" "" ${ARGN})
+	cmake_parse_arguments(f "DEPEND_ON_FILES" "RELATIVE" "PREPEND_DIR" ${ARGN})
 
 	set(args)
 	if (f_DEPEND_ON_FILES)
@@ -1173,6 +1174,9 @@ function(flat_collect_files TARGET OUTPUT)
 	endif()
 	if (f_RELATIVE)
 		list(APPEND args "--relative=${f_RELATIVE}")
+	endif()
+	if (f_PREPEND_DIR)
+		list(APPEND args --prepend-dir)
 	endif()
 
 	add_custom_target(${TARGET}
@@ -1184,6 +1188,31 @@ function(flat_collect_files TARGET OUTPUT)
 			"${Flat_CollectFilesScript}"
 		VERBATIM
 	)
+endfunction()
+
+
+function(flat_sync_directory_files SOURCE DESTINATION DIR)
+	add_custom_command(
+		OUTPUT "${DESTINATION}"
+		COMMAND "${PYTHON_EXECUTABLE}" "${Flat_SyncDirectoryScript}"
+			"--source=${SOURCE}"
+			"--destination=${DESTINATION}"
+			"--dir=${DIR}"
+		DEPENDS "${SOURCE}" "${Flat_SyncDirectoryScript}"
+	)
+endfunction()
+
+
+function(flat_sync_directory TARGET OUTPUT SOURCE_DIR DESTINATION_DIR)
+	flat_collect_files(${TARGET}_CollectFiles "${OUTPUT}-collect-files"
+		RELATIVE "${SOURCE_DIR}" PREPEND_DIR
+		${ARGN}
+	)
+
+	flat_sync_directory_files("${OUTPUT}-collect-files" "${OUTPUT}" "${DESTINATION_DIR}")
+
+	add_custom_target(${TARGET} DEPENDS "${OUTPUT}")
+	add_dependencies(${TARGET} ${TARGET}_CollectFiles)
 endfunction()
 
 

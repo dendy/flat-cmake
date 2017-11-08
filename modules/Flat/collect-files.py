@@ -12,6 +12,7 @@ if __name__ == '__main__':
 	parser.add_argument('--paths', nargs='*', default=[])
 	parser.add_argument('--depend-on-files', dest='dependOnFiles', action='store_true')
 	parser.add_argument('--relative')
+	parser.add_argument('--prepend-dir', dest='prependDir', action='store_true')
 	args = parser.parse_args()
 
 	update = False
@@ -36,6 +37,9 @@ if __name__ == '__main__':
 
 	buffer = io.StringIO()
 	for file in files:
+		if args.prependDir:
+			buffer.write(args.relative)
+			buffer.write(':')
 		buffer.write(file)
 		buffer.write('\n')
 	newBuffer = buffer.getvalue()
