@@ -1251,10 +1251,9 @@ function(flat_add_qmldir_loader QMLDIR_FILE PREFIX LOADER_VAR)
 endfunction()
 
 
-function(flat_add_qrc TARGET CPP_FILE_VAR PATH PREFIX)
+function(flat_generate_qrc TARGET PATH PREFIX QRC_FILE_VAR)
 	set(files_file "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}_files")
 	set(qrc_file "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.qrc")
-	set(cpp_file "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.cpp")
 
 	flat_collect_files(${TARGET} "${files_file}" DEPEND_ON_FILES ${ARGN})
 
@@ -1266,6 +1265,20 @@ function(flat_add_qrc TARGET CPP_FILE_VAR PATH PREFIX)
 		VERBATIM
 	)
 
+	add_custom_target(${TARGET}_qrc DEPENDS "${qrc_file}")
+	add_dependencies(${TARGET}_qrc ${TARGET})
+
+	set(${QRC_FILE_VAR} "${qrc_file}" PARENT_SCOPE)
+endfunction()
+
+
+function(flat_add_qrc TARGET CPP_FILE_VAR PATH PREFIX)
+	cmake_parse_arguments(f "" "QRC_FILE_VAR" "" ${ARGN})
+
+	flat_generate_qrc(${TARGET} "${PATH}" "${PREFIX}" qrc_file ${f_UNPARSED_ARGUMENTS})
+
+	set(cpp_file "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.cpp")
+
 	add_custom_command(
 		OUTPUT ${cpp_file}
 		COMMAND ${Qt5Core_RCC_EXECUTABLE} --name ${TARGET} --output ${cpp_file} ${qrc_file}
@@ -1274,6 +1287,10 @@ function(flat_add_qrc TARGET CPP_FILE_VAR PATH PREFIX)
 	)
 
 	set(${CPP_FILE_VAR} "${cpp_file}" PARENT_SCOPE)
+
+	if (f_QRC_FILE_VAR)
+		set(${f_QRC_FILE_VAR} "${qrc_file}" PARENT_SCOPE)
+	endif()
 endfunction()
 
 
