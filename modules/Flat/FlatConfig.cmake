@@ -1478,6 +1478,7 @@ function(flat_precompile_headers TARGET PRECOMPILED_HEADER)
 			COMMAND "${PYTHON_EXECUTABLE}" "${Flat_GeneratePchFlagsScript}"
 				"--compiler-id=${CMAKE_CXX_COMPILER_ID}"
 				"--include-dirs=$<TARGET_PROPERTY:${TARGET},INCLUDE_DIRECTORIES>"
+				"--compile-features=$<TARGET_PROPERTY:${TARGET},COMPILE_FEATURES>"
 				"--compile-options=$<TARGET_PROPERTY:${TARGET},COMPILE_OPTIONS>"
 				"--compile-flags=$<TARGET_PROPERTY:${TARGET},COMPILE_FLAGS>"
 				"--compile-definitions=$<TARGET_PROPERTY:${TARGET},COMPILE_DEFINITIONS>"
@@ -1544,8 +1545,7 @@ function(flat_precompile_headers TARGET PRECOMPILED_HEADER)
 			)
 		elseif (CMAKE_COMPILER_IS_GNUCXX)
 			set_source_files_properties("${source_file}" PROPERTIES
-				COMPILE_FLAGS "${compile_flags} -Winvalid-pch -I${pch_output_dir}
-						-include ${pch_include}"
+				COMPILE_FLAGS "${compile_flags} -Winvalid-pch -I${pch_output_dir} -include ${pch_include}"
 				OBJECT_DEPENDS "${pch_file_path}"
 			)
 		elseif (is_clang)
