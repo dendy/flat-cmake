@@ -19,26 +19,30 @@ if __name__ == '__main__':
 	fileSum = open(args.file, 'r').read().strip()
 
 	if fileSum != args.sum:
-		print('Verification failed for target ' + args.name + ', expected sum: ' + fileSum,
+		print('\n\nVerification failed for target ' + args.name + ', expected sum: ' + fileSum,
 				file=sys.stderr)
 
 		if args.doc:
-			print('\n' + args.doc, file=sys.stderr)
+			print('\n' + args.doc.replace('@EXPECTED_SUM@', fileSum), file=sys.stderr)
 
 		if args.gits:
 			print('\nLooking for git revisions:', end='', file=sys.stderr)
 			foundRevisions = 0
 
 			for git in args.gits:
-				dir, rev = git.split(':', maxsplit=1)
+				dir, rev, good = git.split(':', maxsplit=2)
 
 				paths = [p for p in [os.path.relpath(p, start=dir) for p in args.paths] \
 						if not p.startswith('..')]
 
 				if paths:
 					revisions = subprocess.run(['git', '-C', dir, 'log', '-s', '--format=%H %s',
-							rev + '..HEAD', '--'] + paths,
-							check=True, stdout=subprocess.PIPE, universal_newlines=True).stdout
+							rev + '..' + good, '--'] + paths,
+							check=True, stdout=subprocess.PIPE, universal_newlines=False).stdout
+
+					# WA: Output might contain invalid CR, use universal_newlines=False and replace
+					#     those with empty string instead of new line.
+					revisions = revisions.replace(b'\r', b'').decode()
 
 					if revisions:
 						if foundRevisions == 0:
@@ -46,11 +50,11 @@ if __name__ == '__main__':
 
 						print('\n' + dir, file=sys.stderr)
 						for revision in revisions.splitlines():
-							print('    ' + revision[:100], file=sys.stderr)
+							print('    ' + revision[:100].replace('\n', ' '), file=sys.stderr)
 							foundRevisions += 1
 
 			if foundRevisions == 0:
-				print('not found')
+				print(' not found\n')
 
 		sys.exit(1)
 
