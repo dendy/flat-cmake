@@ -1531,6 +1531,12 @@ function(flat_precompile_headers TARGET PRECOMPILED_HEADER)
 	endforeach()
 
 	foreach (source_file ${cpp_sources})
+		get_source_file_property(language "${source_file}" LANGUAGE)
+
+		if (NOT language STREQUAL CXX)
+			continue()
+		endif()
+
 		get_source_file_property(compile_flags "${source_file}" COMPILE_FLAGS)
 
 		if (NOT compile_flags)
