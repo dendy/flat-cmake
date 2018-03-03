@@ -107,7 +107,7 @@ function(refactor TARGET SUM)
 			--name "${TARGET}"
 			--doc "${x_DOC}"
 			--gits ${gits}
-			--paths ${x_PATHS}
+			--files "${files_file}"
 		DEPENDS
 			"${verify_script}"
 			"${sum_file}"

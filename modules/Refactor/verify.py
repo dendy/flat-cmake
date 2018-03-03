@@ -13,10 +13,12 @@ if __name__ == '__main__':
 	parser.add_argument('--name', required=True)
 	parser.add_argument('--doc', required=True)
 	parser.add_argument('--gits', nargs='*')
-	parser.add_argument('--paths', nargs='*')
+	parser.add_argument('--files', required=True)
 	args = parser.parse_args()
 
 	fileSum = open(args.file, 'r').read().strip()
+
+	files = open(args.files, 'r').read().splitlines()
 
 	if fileSum != args.sum:
 		print('\n\nVerification failed for target ' + args.name + ', expected sum: ' + fileSum,
@@ -32,12 +34,12 @@ if __name__ == '__main__':
 			for git in args.gits:
 				dir, rev, good = git.split(':', maxsplit=2)
 
-				paths = [p for p in [os.path.relpath(p, start=dir) for p in args.paths] \
-						if not p.startswith('..')]
+				allFiles = [os.path.relpath(f, start=dir) for f in files]
+				dirFiles = [p for p in allFiles if not p.startswith('..')]
 
-				if paths:
+				if dirFiles:
 					revisions = subprocess.run(['git', '-C', dir, 'log', '-s', '--format=%H %s',
-							rev + '..' + good, '--'] + paths,
+							rev + '..' + good, '--'] + dirFiles,
 							check=True, stdout=subprocess.PIPE, universal_newlines=False).stdout
 
 					# WA: Output might contain invalid CR, use universal_newlines=False and replace

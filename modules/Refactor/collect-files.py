@@ -14,7 +14,7 @@ def exec():
 	files = []
 
 	for path in args.paths:
-		foundFiles = glob.glob(path)
+		foundFiles = glob.glob(path, recursive=True)
 		if foundFiles:
 			files += foundFiles
 		elif os.path.isfile(path):
