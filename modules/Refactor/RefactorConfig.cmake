@@ -30,9 +30,9 @@ function(refactor TARGET SUM)
 	cmake_parse_arguments(x "" "DOC" "GIT_DIRS;PATHS" ${ARGN})
 
 	list(LENGTH x_GIT_DIRS git_dirs_length)
-	math(EXPR git_dirs_reminder "${git_dirs_length} % 2")
+	math(EXPR git_dirs_reminder "${git_dirs_length} % 3")
 	if (NOT git_dirs_reminder EQUAL 0)
-		message(FATAL_ERROR "GIT_DIRS should have even arguments")
+		message(FATAL_ERROR "GIT_DIRS should have x3 arguments")
 	endif()
 
 	set(dir)
