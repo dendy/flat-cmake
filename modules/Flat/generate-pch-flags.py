@@ -35,7 +35,7 @@ pch_args += ['-I' + dir for dir in filter(args.include_dirs)]
 pch_args += ['-D' + d for d in filter(args.compile_definitions)]
 pch_args += filter(args.compile_options)
 pch_args += filter(args.extra_flags)
-pch_args += [feature_flag[v] for v in filter(args.compile_features)]
+pch_args += [feature_flag[v] for v in filter(args.compile_features) if v in feature_flag]
 if args.pic == '1':
 	pch_args += filter(args.pie_flags if args.type == 'EXECUTABLE' else args.pic_flags)
 
