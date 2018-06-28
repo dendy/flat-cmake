@@ -10,21 +10,6 @@ set(hash_files_script "${CMAKE_CURRENT_LIST_DIR}/hash-files.py")
 set(sum_script "${CMAKE_CURRENT_LIST_DIR}/sum.py")
 set(verify_script "${CMAKE_CURRENT_LIST_DIR}/verify.py")
 
-# Last verified revisions CMake build system is in sync with.
-# Update the revision numbers every time when verification hash is updated.
-set(subprojects config Netflix)
-set(subproject_revision_config  "5cc87b77b7865616c131682cc7a7880ab94e34da")
-set(subproject_revision_Netflix "98fab9079050814d3c09010d260e02d95d7fe271")
-
-# Verification hash of the last known Makefiles CMake build system is compatible with.
-# Check script will tell when Makefiles were updated and show you a new hash value.
-# Replace verification_hash with that new value once CMake script will reflect changes made in
-# Makefiles. Use subproject_revision_* to find diff.
-set(verification_hash "ff1631f2a2dc163e85d8a533f71393613272cb32")
-
-get_filename_component(top_dir "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
-
-
 
 function(refactor TARGET SUM)
 	cmake_parse_arguments(x "" "DOC" "GIT_DIRS;PATHS" ${ARGN})
