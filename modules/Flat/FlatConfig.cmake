@@ -143,8 +143,9 @@ function(flat_add_sources)
 		endif()
 
 		flat_get_file_name_and_suffix("${arg}" file_name file_suffix)
+		string(TOLOWER "${file_suffix}" file_suffix_lower)
 
-		if (_Flat_SourceSuffixLists_${file_suffix})
+		if (_Flat_SourceSuffixLists_${file_suffix_lower})
 			set(suffixes "${file_suffix}")
 		else()
 			set(file_name "${arg}")
