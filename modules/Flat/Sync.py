@@ -246,7 +246,7 @@ class Main:
 			rsyncArgs += ['-v']
 
 		if delete:
-			rsyncArgs += ['--delete']
+			rsyncArgs += ['--delete', '--delete-excluded']
 
 		if sys.platform == 'linux' and copySymlinks:
 			rsyncArgs += ['-L']

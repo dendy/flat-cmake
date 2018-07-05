@@ -305,7 +305,7 @@ function(flat_add_sync_target TARGET DESTINATION)
 			"--excludes=$<JOIN:$<TARGET_PROPERTY:${TARGET},SyncExcludesList>,${file_sep}>"
 	)
 
-	if ( f_OUTPUT )
+	if (f_OUTPUT)
 		get_filename_component(output_directory "${f_OUTPUT}" DIRECTORY)
 
 		add_custom_command(
@@ -314,7 +314,7 @@ function(flat_add_sync_target TARGET DESTINATION)
 			COMMAND ${CMAKE_COMMAND} -E make_directory "${output_directory}"
 			COMMAND ${CMAKE_COMMAND} -E touch "${f_OUTPUT}"
 			WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-			DEPENDS ${f_DEPENDS}
+			DEPENDS ${f_DEPENDS} "${Flat_SyncScript}"
 		)
 
 		add_custom_target(${TARGET} DEPENDS "${f_OUTPUT}")
@@ -336,15 +336,15 @@ endfunction()
 function(flat_sync_once TARGET SOURCE DESTINATION)
 	set(exclude_sep "!!es!!")
 
-	cmake_parse_arguments(f "DELETE" "PATH" "EXCLUDE;DEPENDS" ${ARGN})
+	cmake_parse_arguments(f "KEEP" "PATH" "EXCLUDE;DEPENDS" ${ARGN})
 
-	if ( f_DELETE )
-		set(f_DELETE YES)
-	else()
+	if (f_KEEP)
 		set(f_DELETE NO)
+	else()
+		set(f_DELETE YES)
 	endif()
 
-	if ( f_EXCLUDE )
+	if (f_EXCLUDE)
 		string(REPLACE ";" "${exclude_sep}" excludes "${f_EXCLUDE}")
 	else()
 		set(excludes "NONE")
@@ -363,7 +363,7 @@ function(flat_sync_once TARGET SOURCE DESTINATION)
 			"${CMAKE_CURRENT_BINARY_DIR}"
 	)
 
-	if ( f_DEPENDS )
+	if (f_DEPENDS)
 		add_dependencies(${TARGET} ${f_DEPENDS})
 	endif()
 endfunction()
@@ -372,20 +372,20 @@ endfunction()
 function(flat_sync TARGET SOURCE)
 	set(exclude_sep "!!es!!")
 
-	if ( NOT TARGET ${TARGET} )
+	if (NOT TARGET ${TARGET})
 		message(FATAL_ERROR "Create target ${TARGET} with flat_add_sync_target() first")
 	endif()
 
-	cmake_parse_arguments(sync "DELETE;COPY_SYMLINKS" "DESTINATION" "DEPENDS;EXCLUDE" ${ARGN})
+	cmake_parse_arguments(sync "KEEP;COPY_SYMLINKS" "DESTINATION" "DEPENDS;EXCLUDE" ${ARGN})
 
-	if ( NOT sync_DESTINATION )
+	if (NOT sync_DESTINATION)
 		set(sync_DESTINATION "ROOT")
 	endif()
 
-	if ( sync_EXCLUDE )
+	if (sync_EXCLUDE)
 		set(excludes "")
-		foreach ( exclude ${sync_EXCLUDE} )
-			if ( NOT "${excludes}" STREQUAL "" )
+		foreach (exclude ${sync_EXCLUDE})
+			if (NOT "${excludes}" STREQUAL "")
 				set(excludes "${excludes}${exclude_sep}")
 			endif()
 			set(excludes "${excludes}${exclude}")
@@ -394,13 +394,13 @@ function(flat_sync TARGET SOURCE)
 		set(excludes "NONE")
 	endif()
 
-	if ( sync_DELETE )
-		set(sync_DELETE YES)
-	else()
+	if (sync_KEEP)
 		set(sync_DELETE NO)
+	else()
+		set(sync_DELETE YES)
 	endif()
 
-	if ( sync_COPY_SYMLINKS )
+	if (sync_COPY_SYMLINKS)
 		set(sync_COPY_SYMLINKS YES)
 	else()
 		set(sync_COPY_SYMLINKS NO)
@@ -412,14 +412,14 @@ function(flat_sync TARGET SOURCE)
 	set_property(TARGET ${TARGET} APPEND PROPERTY SyncCopySymlinksList "${sync_COPY_SYMLINKS}")
 	set_property(TARGET ${TARGET} APPEND PROPERTY SyncExcludesList "${excludes}")
 
-	if ( sync_DEPENDS )
+	if (sync_DEPENDS)
 		add_dependencies(${TARGET} ${sync_DEPENDS})
 	endif()
 
 	get_target_property(sync_list ${TARGET} SyncList)
 
 	# check conflicting DELETE destinations
-	foreach ( var ${sync_list} )
+	foreach (var ${sync_list})
 		get_target_property(sync_destination   ${TARGET} SyncDestination_${var})
 		get_target_property(sync_sources       ${TARGET} SyncSources_${var})
 		get_target_property(sync_depends       ${TARGET} SyncDepends_${var})
@@ -429,18 +429,18 @@ function(flat_sync TARGET SOURCE)
 
 		set(ok YES)
 
-		if ( sync_DELETE )
+		if (sync_DELETE)
 			_flat_add_sync_check_conflict(${TARGET} "${sync_DESTINATION}" "${sync_destination}" ok)
 		endif()
 
-		if ( ok )
-			if ( sync_delete )
+		if (ok)
+			if (sync_delete)
 				_flat_add_sync_check_conflict(${TARGET} "${sync_destination}"
 						"${sync_DESTINATION}" ok)
 			endif()
 		endif()
 
-		if ( NOT ok )
+		if (NOT ok)
 			message("Conflicting syncs:")
 			message("    ${SOURCE} - > ${sync_DESTINATION} (delete=${sync_DELETE})")
 			message("    ${sync_sources} -> ${sync_destination} (delete=${sync_delete})")
@@ -452,14 +452,14 @@ function(flat_sync TARGET SOURCE)
 	string(REPLACE "/" "_" var "${var}")
 	string(REPLACE "\\" "_" var "${var}")
 
-	if ( "${var}" STREQUAL "" )
+	if ("${var}" STREQUAL "")
 		set(var "ROOT")
 	endif()
 
 	set(var ${var}_${sync_COPY_SYMLINKS})
 
 	list(FIND sync_list ${var} var_index)
-	if ( NOT ${var_index} EQUAL -1 )
+	if (NOT ${var_index} EQUAL -1)
 		get_target_property(sync_destination   ${TARGET} SyncDestination_${var})
 		get_target_property(sync_sources       ${TARGET} SyncSources_${var})
 		get_target_property(sync_depends       ${TARGET} SyncDepends_${var})
@@ -474,10 +474,10 @@ function(flat_sync TARGET SOURCE)
 	list(APPEND sync_sources "${SOURCE}")
 	set(sync_delete "${sync_DELETE}")
 	set(sync_copy_symlinks "${sync_COPY_SYMLINKS}")
-	if ( sync_DEPENDS )
+	if (sync_DEPENDS)
 		list(APPEND sync_depends "${sync_DEPENDS}")
 	endif()
-	if ( sync_EXCLUDE )
+	if (sync_EXCLUDE)
 		list(APPEND sync_exclude "${sync_EXCLUDE}")
 	endif()
 
