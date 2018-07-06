@@ -350,6 +350,12 @@ function(flat_sync_once TARGET SOURCE DESTINATION)
 		set(excludes "NONE")
 	endif()
 
+	if (f_DEPENDS)
+		set(depends_args DEPENDS ${f_DEPENDS})
+	else()
+		set(depends_args)
+	endif()
+
 	add_custom_target(${TARGET}
 		COMMAND "${PYTHON_EXECUTABLE}"
 			"${Flat_SyncScript}"
@@ -361,11 +367,8 @@ function(flat_sync_once TARGET SOURCE DESTINATION)
 			"--excludes=${excludes}"
 		WORKING_DIRECTORY
 			"${CMAKE_CURRENT_BINARY_DIR}"
+		${depends_args}
 	)
-
-	if (f_DEPENDS)
-		add_dependencies(${TARGET} ${f_DEPENDS})
-	endif()
 endfunction()
 
 
