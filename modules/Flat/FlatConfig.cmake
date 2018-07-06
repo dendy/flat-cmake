@@ -10,7 +10,7 @@ find_package(PythonCompiler REQUIRED)
 set(Flat_ScriptsDir "${CMAKE_CURRENT_LIST_DIR}")
 set(Flat_SyncScript "${CMAKE_CURRENT_LIST_DIR}/Sync.py")
 set(Flat_RunWithEnvScriptIn "${CMAKE_CURRENT_LIST_DIR}/run-with-env.py.in")
-set(Flat_CheckGitRevisionScript "${CMAKE_CURRENT_LIST_DIR}/check-git-revision.py")
+set(Flat_GenerateGitTreeScript "${CMAKE_CURRENT_LIST_DIR}/generate-git-tree.py")
 set(Flat_EraseCurrentDirScript "${CMAKE_CURRENT_LIST_DIR}/erase-current-dir.py")
 set(Flat_CollectFilesScript "${CMAKE_CURRENT_LIST_DIR}/collect-files.py")
 set(Flat_SyncDirectoryScript "${CMAKE_CURRENT_LIST_DIR}/sync-directory.py")
@@ -928,14 +928,37 @@ endfunction()
 # Create target to check whether git repository revision has been updated.
 #
 # Arguments:
-#   TARGET - phony target name
-#   OUTPUT - output to be touched when git repository content changed,
-#            this is a byproduct of TARGET
+#   TARGET       - phony target name
+#   OUTPUT       - output to be touched when git repository content changed,
+#                  this is a byproduct of TARGET
+#   NO_CHANGES   - ignore all local changes, look at HEAD^{tree} only
+#   NO_UNTRACKED - respect changes in modified files, but ignore untracked files
 
 function(flat_check_git TARGET OUTPUT GIT)
+	cmake_parse_arguments(f "NO_CHANGES;NO_UNTRACKED" "" "" ${ARGN})
+
+	if (f_NO_CHANGES)
+		set(dirty_args "--no-dirty")
+	else()
+		set(dirty_args)
+	endif()
+
+	if (f_NO_UNTRACKED)
+		set(untracked_args "--no-untracked")
+	else()
+		set(untracked_args)
+	endif()
+
 	add_custom_target(${TARGET}
-		COMMAND "${PYTHON_EXECUTABLE}" "${Flat_CheckGitRevisionScript}" "${GIT}" "${OUTPUT}"
+		COMMAND "${PYTHON_EXECUTABLE}" "${Flat_GenerateGitTreeScript}"
+			"--git-dir=${GIT}"
+			"--output=${OUTPUT}.tree"
+			${dirty_args}
+			${untracked_args}
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+			"${OUTPUT}.tree" "${OUTPUT}"
 		BYPRODUCTS "${OUTPUT}"
+		DEPENDS "${Flat_GenerateGitTreeScript}"
 	)
 endfunction()
 
