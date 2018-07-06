@@ -75,7 +75,7 @@ if __name__ == '__main__':
 
 			if tracked_changes:
 				# add tracked files into index
-				index_git.exec('update-index', '--add', '--', *tracked_changes)
+				index_git.exec('update-index', '--add', '--remove', '--', *tracked_changes)
 
 			if args.untracked and untracked_changes:
 				# add untracked files into index
