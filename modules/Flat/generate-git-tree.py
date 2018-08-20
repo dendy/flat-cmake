@@ -60,7 +60,7 @@ if __name__ == '__main__':
 			# take tree directly from .git/index
 			index_git =  git
 		else:
-			# copy ogiginal index file into temporary location to add tracked/untracked files
+			# copy original index file into temporary location to add tracked/untracked files
 			# and get tree without affecting original .git/index
 			this_index_file = os.path.join(git.path, git.exec('rev-parse', '--git-path', 'index'))
 
