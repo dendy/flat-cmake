@@ -46,6 +46,8 @@ endfunction()
 
 flat_register_source_suffixes("h;hpp;hxx" HEADERS)
 flat_register_source_suffixes("c;cpp;cxx;mm;s" SOURCES)
+flat_register_source_suffixes("c" C_SOURCES)
+flat_register_source_suffixes("cpp;cxx" CPP_SOURCES)
 flat_register_source_suffixes("ui" FORMS)
 flat_register_source_suffixes("qrc" RESOURCES)
 flat_register_source_suffixes("qml" QML)
