@@ -16,7 +16,7 @@ def exec():
 	for path in args.paths:
 		foundFiles = glob.glob(path, recursive=True)
 		if foundFiles:
-			files += foundFiles
+			files += [f for f in foundFiles if os.path.isfile(f)]
 		elif os.path.isfile(path):
 			files.append(path)
 	files = sorted(files)
