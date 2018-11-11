@@ -1015,6 +1015,7 @@ endfunction()
 #                    invoke the build again and touch the BUILD_TARGET_FILE
 #   DEPENDS        - dependencies to trigger reconfiguration
 #   CLEAN_DEPENDS  - dependencies to trigger full clean build
+#   ADD_OE_QMAKE_PATH_EXTERNAL_HOST_BINS -
 
 function(flat_configure_cmake_project TARGET)
 	set(Python_ADDITIONAL_VERSIONS 3.5-32)
@@ -1112,6 +1113,12 @@ function(flat_configure_cmake_project TARGET)
 	)
 
 	# rule to configure project
+	if (f_ADD_OE_QMAKE_PATH_EXTERNAL_HOST_BINS)
+		set(oe_args -D "OE_QMAKE_PATH_EXTERNAL_HOST_BINS=${OE_QMAKE_PATH_EXTERNAL_HOST_BINS}")
+	else()
+		set(oe_args)
+	endif()
+
 	add_custom_command(
 		OUTPUT "${build_file}"
 		COMMAND "${PYTHON_EXECUTABLE}" "${Flat_EraseCurrentDirScript}"
@@ -1119,7 +1126,7 @@ function(flat_configure_cmake_project TARGET)
 			-G "${generator}"
 			-D "CMAKE_MAKE_PROGRAM=${build_make}"
 			-D "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}"
-			-D "OE_QMAKE_PATH_EXTERNAL_HOST_BINS=${OE_QMAKE_PATH_EXTERNAL_HOST_BINS}"
+			${or_args}
 			${args}
 			"${f_SOURCE_DIR}"
 		WORKING_DIRECTORY "${cmake_build_dir}"
