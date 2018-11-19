@@ -241,6 +241,17 @@ function(flat_add_target_rpath TARGET)
 endfunction()
 
 
+# Add class export macro for:
+#     class MYEXPORT MyClass
+#
+# - TARGET : target for add macro definition to
+# - EXPORT : macro name, which will be expanded to appropriate platform notation:
+#            - static libraries: expands to nothing
+#            - shared libraries:
+#                - unix: __attribute__((visibility("default")))
+#                - win:  when exporting: __declspec(dllexport)
+#                        when importing: __declspec(dllimport)
+
 function(flat_add_library_export_macro TARGET EXPORT)
 	get_target_property(type ${TARGET} TYPE)
 	if ( "${type}" STREQUAL "SHARED_LIBRARY" )
