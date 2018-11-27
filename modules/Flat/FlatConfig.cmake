@@ -1021,6 +1021,7 @@ endfunction()
 #   GENERATOR      - generator to use, default: ${CMAKE_GENERATOR}
 #   ENV            - environment variables with which to configure the project
 #   ENV_PATHS      - paths to add to PATH environment variable when configuring the project
+#   CMAKE_ARGS     - additional arguments to CMake
 #   ARGS           - CMake variables for configuring the project
 #   GIT_DIRS       - git dirs to check revision update from, when any git dir is changed then
 #                    invoke the build again and touch the BUILD_TARGET_FILE
@@ -1033,7 +1034,7 @@ function(flat_configure_cmake_project TARGET)
 	find_package(PythonInterp 3.5 REQUIRED)
 
 	cmake_parse_arguments(f "" "SOURCE_DIR;BUILD_DIR;GENERATOR;MAKE"
-			"ENV;ENV_PATHS;ARGS;GIT_DIRS;DEPENDS;CLEAN_DEPENDS" ${ARGN})
+			"ENV;ENV_PATHS;CMAKE_ARGS;ARGS;GIT_DIRS;DEPENDS;CLEAN_DEPENDS" ${ARGN})
 
 	# vars
 	set(build_dir "${f_BUILD_DIR}")
@@ -1134,6 +1135,7 @@ function(flat_configure_cmake_project TARGET)
 		OUTPUT "${build_file}"
 		COMMAND "${PYTHON_EXECUTABLE}" "${Flat_EraseCurrentDirScript}"
 		COMMAND "${PYTHON_EXECUTABLE}" "${run_script}" ${CMAKE_COMMAND}
+			${f_CMAKE_ARGS}
 			-G "${generator}"
 			-D "CMAKE_MAKE_PROGRAM=${build_make}"
 			-D "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}"
@@ -1148,7 +1150,7 @@ function(flat_configure_cmake_project TARGET)
 		OUTPUT "${reconfigure_target}"
 		COMMAND "${PYTHON_EXECUTABLE}" "${run_script}" "${PYTHON_EXECUTABLE}"
 			"${Flat_ReconfigureCMakeScript}" "${cmake_build_dir}" "${build_file_name}"
-			"${reconfigure_target}" --cmake "${CMAKE_COMMAND}" --deps ${f_DEPENDS}
+			"${reconfigure_target}" --cmake "${CMAKE_COMMAND}" ${f_CMAKE_ARGS} --deps ${f_DEPENDS}
 		DEPENDS "${build_file}" ${f_DEPENDS}
 	)
 
