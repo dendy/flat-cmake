@@ -14,6 +14,7 @@ if __name__ == '__main__':
 	parser.add_argument('--doc', required=True)
 	parser.add_argument('--gits', nargs='*')
 	parser.add_argument('--files', required=True)
+	parser.add_argument('--verbose', default=False)
 	args = parser.parse_args()
 
 	fileSum = open(args.file, 'r').read().strip()
@@ -51,6 +52,13 @@ if __name__ == '__main__':
 							print(file=sys.stderr)
 
 						print('\n' + dir, file=sys.stderr)
+
+						if args.verbose:
+							print()
+							print('Found files:')
+							for dirFile in dirFiles:
+								print('    ' + dirFile)
+
 						for revision in revisions.splitlines():
 							print('    ' + revision[:100].replace('\n', ' '), file=sys.stderr)
 							foundRevisions += 1
