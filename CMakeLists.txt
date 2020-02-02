@@ -8,12 +8,14 @@ function(_flat_exec)
 
 	set(Flat_Static NO CACHE BOOL "Build Flat libs statically")
 
+	set(all_modules_required NO)
 	if (NOT Flat_Modules OR "${Flat_Modules}" STREQUAL ALL)
 		set(modules Core Debug Utils Vulkan Link Game Jni)
 	elseif ("${Flat_Modules}" STREQUAL NONE)
 		set(modules)
 	else()
 		set(modules ${Flat_Modules})
+		set(all_modules_required YES)
 	endif()
 
 	set(other_files)
@@ -30,6 +32,9 @@ function(_flat_exec)
 		string(TOLOWER "${module}" module_lower)
 
 		if (NOT IS_DIRECTORY "${root_dir}/${module_lower}")
+			if (all_modules_required)
+				message(FATAL_ERROR "Module directory does not exist: ${root_dir}/${module_lower}")
+			endif()
 			continue()
 		endif()
 
