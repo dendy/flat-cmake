@@ -11,7 +11,7 @@ function(_flat_exec)
 	set(all_modules_required NO)
 	if (NOT Flat_Modules OR "${Flat_Modules}" STREQUAL ALL)
 		set(modules Core Debug Utils Vulkan Link Game Jni Oal Math Input Controller Bind
-				Localization)
+				Localization Text)
 	elseif ("${Flat_Modules}" STREQUAL NONE)
 		set(modules)
 	else()
