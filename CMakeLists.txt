@@ -7,6 +7,7 @@ function(_flat_exec)
 	set(Flat_DIR "${CMAKE_CURRENT_SOURCE_DIR}/modules/Flat")
 
 	set(Flat_Static NO CACHE BOOL "Build Flat libs statically")
+	set(Flat_Modules ALL CACHE STRING "Modules to configure")
 
 	set(all_modules_required NO)
 	if (NOT Flat_Modules OR "${Flat_Modules}" STREQUAL ALL)
