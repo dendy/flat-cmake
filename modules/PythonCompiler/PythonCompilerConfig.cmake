@@ -1,11 +1,11 @@
 
 find_package(PackageHandleStandardArgs)
 
-set(Python_ADDITIONAL_VERSIONS 3.5-32)
-find_package(PythonInterp 3.5 REQUIRED)
+set(Python_ADDITIONAL_VERSIONS 3.6-32)
+find_package(PythonInterp 3.6 REQUIRED)
 
-if ( "${PYTHON_VERSION_STRING}" VERSION_LESS "3.5" )
-	message(FATAL_ERROR "Incompatible Python version: ${PYTHON_VERSION_STRING}. At least 3.5 is required.")
+if ( "${PYTHON_VERSION_STRING}" VERSION_LESS "3.6" )
+	message(FATAL_ERROR "Incompatible Python version: ${PYTHON_VERSION_STRING}. At least 3.6 is required.")
 endif()
 
 
