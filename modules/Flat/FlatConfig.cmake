@@ -1223,22 +1223,25 @@ endfunction()
 
 
 function(flat_collect_files TARGET OUTPUT)
-	cmake_parse_arguments(f "DEPEND_ON_FILES" "RELATIVE" "PREPEND_DIR" ${ARGN})
+	cmake_parse_arguments(f "DEPEND_ON_FILES;PREPEND_DIR" "RELATIVE" "PATHS;EXCLUDE" ${ARGN})
 
 	set(args)
 	if (f_DEPEND_ON_FILES)
-		list(APPEND args --depend-on-files)
+		list(APPEND args "--depend-on-files")
 	endif()
 	if (f_RELATIVE)
-		list(APPEND args "--relative=${f_RELATIVE}")
+		list(APPEND args "--relative" "${f_RELATIVE}")
 	endif()
 	if (f_PREPEND_DIR)
-		list(APPEND args --prepend-dir)
+		list(APPEND args "--prepend-dir")
+	endif()
+	if (f_EXCLUDE)
+		list(APPEND args "--exclude" "${f_EXCLUDE}")
 	endif()
 
 	add_custom_target(${TARGET}
 		COMMAND
-			${PYTHON_EXECUTABLE} "${Flat_CollectFilesScript}" "${OUTPUT}" ${args} --paths ${ARGN}
+			${PYTHON_EXECUTABLE} "${Flat_CollectFilesScript}" "${OUTPUT}" ${args} --paths ${f_PATHS}
 		BYPRODUCTS
 			"${OUTPUT}"
 		DEPENDS
@@ -1262,8 +1265,9 @@ endfunction()
 
 function(flat_sync_directory TARGET OUTPUT SOURCE_DIR DESTINATION_DIR)
 	flat_collect_files(${TARGET}_CollectFiles "${OUTPUT}-collect-files"
-		RELATIVE "${SOURCE_DIR}" PREPEND_DIR
-		${ARGN}
+		PREPEND_DIR
+		RELATIVE "${SOURCE_DIR}"
+		PATHS ${ARGN}
 	)
 
 	flat_sync_directory_files("${OUTPUT}-collect-files" "${OUTPUT}" "${DESTINATION_DIR}")
@@ -1305,7 +1309,7 @@ function(flat_generate_qrc TARGET PATH PREFIX QRC_FILE_VAR)
 	set(files_file "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}_files")
 	set(qrc_file "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.qrc")
 
-	flat_collect_files(${TARGET} "${files_file}" DEPEND_ON_FILES ${ARGN})
+	flat_collect_files(${TARGET} "${files_file}" DEPEND_ON_FILES PATHS ${ARGN})
 
 	add_custom_command(
 		OUTPUT "${qrc_file}"

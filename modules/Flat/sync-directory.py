@@ -31,7 +31,7 @@ if __name__ == '__main__':
 		sourceFile = os.path.join(dir, file)
 		destinationFile = os.path.join(args.dir, file)
 		if not os.path.isfile(destinationFile) \
-				or os.path.getctime(sourceFile) > os.path.getctime(destinationFile):
+				or os.path.getmtime(sourceFile) > os.path.getmtime(destinationFile):
 			os.makedirs(os.path.dirname(destinationFile), exist_ok=True)
 			shutil.copyfile(sourceFile, destinationFile, follow_symlinks=True)
 

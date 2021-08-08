@@ -23,7 +23,7 @@ function(qmlcompiler_add_library TARGET LOADER_VAR)
 	set(build_dir "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}")
 	set(qml_files_target "${build_dir}/qml-files.target")
 
-	flat_collect_files(${TARGET}_CollectQml "${qml_files_target}" "${f_SOURCE_DIR}/**/*.qml")
+	flat_collect_files(${TARGET}_CollectQml "${qml_files_target}" PATHS "${f_SOURCE_DIR}/**/*.qml")
 
 	if ( f_PREFIX )
 		set(prefix_args PREFIX "${f_PREFIX}")
