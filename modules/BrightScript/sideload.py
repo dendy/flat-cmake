@@ -4,12 +4,13 @@
 import argparse
 import urllib.parse
 import urllib.request
-import yaml
 import os.path
 import xml.etree.ElementTree
 import sys
 import subprocess
 import html.parser
+
+import brs
 
 
 class InstallParser(html.parser.HTMLParser):
@@ -60,36 +61,13 @@ def main():
 	parser.add_argument('--device', required=False)
 	args = parser.parse_args()
 
-	with open(os.path.expanduser('~/.roku/devices-config.yaml'), 'r') as f:
-		devices_config = yaml.load(f, Loader=yaml.FullLoader)
-
-	default = devices_config.get('default')
-	devices = devices_config.get('devices')
-
-	if args.device:
-		device_name = args.device
-	else:
-		device_name = default['device']
-
-	device = devices[device_name]
-
-	def get_device_param(key):
-		nonlocal default
-		nonlocal device
-		value = device.get(key)
-		if value is None:
-			value = default.get(key)
-		return value
-
-	address = get_device_param('address')
-	password = get_device_param('password')
-	print(address, password)
+	device = brs.Device(args.device)
 
 	# check ECP, to verify we are talking to a Roku
 	def check_device():
-		nonlocal address
-		print(f'    Checking device at address: {address}')
-		response = urllib.request.urlopen(f'http://{address}:8060/query/device-info')
+		nonlocal device
+		print(f'    Checking device at address: {device.address}')
+		response = urllib.request.urlopen(f'http://{device.address}:8060/query/device-info')
 		if response.status != 200:
 			raise RuntimeError(f'Error connecting to device: {response.status}')
 		body = response.read().decode()
@@ -101,11 +79,11 @@ def main():
 
 	# check dev web server
 	def check_web_server():
-		nonlocal address
+		nonlocal device
 		try:
-			print(f'    Checking web server at address: {address}')
+			print(f'    Checking web server at address: {device.address}')
 			# it should return 401 Unauthorized since we aren't passing the password
-			response = urllib.request.urlopen(f'http://{address}')
+			response = urllib.request.urlopen(f'http://{device.address}')
 		except urllib.error.HTTPError as e:
 			if e.code != 401:
 				raise RuntimeError(f'Error connecting to web server: {e}')
@@ -113,18 +91,17 @@ def main():
 
 	def install_package():
 		nonlocal args
-		nonlocal address
-		nonlocal password
+		nonlocal device
 		print(f'    Installing package')
 
 		curl_cli = ['curl',
-			'--user', f'rokudev:{password}',
+			'--user', f'rokudev:{device.password}',
 			'--digest',
 			'--silent',
 			'--show-error',
 			'-F', 'mysubmit=Install',
 			'-F', f'archive=@{args.package}',
-			f'http://{address}/plugin_install'
+			f'http://{device.address}/plugin_install'
 		]
 
 		html_body = subprocess.run(curl_cli, check=True, stdout=subprocess.PIPE,
