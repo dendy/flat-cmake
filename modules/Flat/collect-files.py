@@ -14,7 +14,7 @@ def main():
 	parser.add_argument('--depend-on-files', dest='dependOnFiles', action='store_true')
 	parser.add_argument('--relative')
 	parser.add_argument('--prepend-dir', dest='prependDir', action='store_true')
-	parser.add_argument('--exclude', nargs='*')
+	parser.add_argument('--exclude', nargs='*', default=[])
 	args = parser.parse_args()
 
 	update = False
@@ -55,6 +55,8 @@ def main():
 			if os.path.isfile(path):
 				add_file(path)
 		else:
+			if len(f) == 1 and not os.path.exists(f[0]):
+				print(f'Path does not exist: {path}', file=sys.stderr)
 			for x in f:
 				if os.path.isfile(x):
 					add_file(x)
