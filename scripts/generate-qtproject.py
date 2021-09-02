@@ -37,10 +37,19 @@ def run(config, root_dir, project_dir, local=None):
 				else:
 					print(f'#define {key} {value}', file=f)
 
+	def user_expanded_value(value):
+		if value.startswith('~'):
+			return os.path.expanduser(value)
+		else:
+			return value
+
 	if not local is None:
 		with open(local, 'r') as f:
 			local = yaml.load(f, Loader=yaml.FullLoader)
 			local_mappings = local.get('mappings')
+			if not local_mappings is None:
+				local_mappings = {key: user_expanded_value(value)
+						for key, value in local_mappings.items()}
 	else:
 		local_mappings = None
 
