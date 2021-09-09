@@ -6,9 +6,30 @@ import os.path
 import fnmatch
 import glob
 import argparse
+import sys
 
 
 def run(config, root_dir, project_dir, local=None):
+	platform_name_for_sys_platform = dict(
+		linux  = 'linux',
+		win32  = 'win',
+		darwin = 'mac',
+	)
+	platform_name = platform_name_for_sys_platform[sys.platform]
+
+	def check_valid_platform_name(name):
+		for value in platform_name_for_sys_platform.values():
+			if name == value: return
+		raise AttributeError(f'Invalid platform name: {name}')
+
+	def get_platform_paths(d):
+		# check that all keys in the d are valid platform names
+		for key in d.keys():
+			check_valid_platform_name(key)
+		paths = d.get(platform_name)
+		if paths is None: paths = []
+		return paths
+
 	with open(config, 'r') as f:
 		config = yaml.load(f, Loader=yaml.FullLoader)
 
@@ -66,12 +87,22 @@ def run(config, root_dir, project_dir, local=None):
 			expanded_path = f'{root_dir}/{expanded_path}'
 		return expanded_path
 
+	def process_include(include):
+		if type(include) != str:
+			raise AttributeError(f'Invalid entry: {include}')
+		expanded_include = expand_path(include)
+		print(expanded_include, file=f)
+
 	with open(f'{project_dir}/{name}.includes', 'w') as f:
 		includes = config.get('includes')
 		if not includes is None:
 			for include in includes:
-				expanded_include = expand_path(include)
-				print(expanded_include, file=f)
+#				print(include)
+				if type(include) == dict:
+					for platform_include in get_platform_paths(include):
+						process_include(platform_include)
+				else:
+					process_include(include)
 
 	ignores = config.get('ignore')
 	def is_ignored(path):
