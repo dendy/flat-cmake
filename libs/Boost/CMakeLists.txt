@@ -18,6 +18,11 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
 		-Wno-deprecated-declarations
 	)
 endif()
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND WIN32)
+	target_compile_definitions(Boost_Global INTERFACE
+		_WIN32_WINNT=0x600
+	)
+endif()
 
 if (Boost_Shared)
 	set(lib_type SHARED)
