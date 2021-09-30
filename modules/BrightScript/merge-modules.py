@@ -57,11 +57,6 @@ def main():
 			target_files.remove(file)
 		except KeyError:
 			return True
-		if os.path.samefile(abs_target_file, abs_source_file):
-			if not updated:
-				if update_mtime is None or os.path.getmtime(abs_source_file) > update_mtime:
-					updated = True
-			return False
 		target_time = os.path.getmtime(abs_target_file)
 		source_time = os.path.getmtime(abs_source_file)
 		return source_time != target_time
@@ -69,10 +64,7 @@ def main():
 	def copy_file(source_file, target_file):
 		target_dir = os.path.dirname(target_file)
 		os.makedirs(target_dir, exist_ok=True)
-		try:
-			os.link(source_file, target_file)
-		except OSError:
-			shutil.copy2(source_file, target_file)
+		shutil.copy2(source_file, target_file)
 
 	for file, source_dir in source_files.items():
 		abs_source_file = os.path.join(source_dir, file)
