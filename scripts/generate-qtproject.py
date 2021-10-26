@@ -92,6 +92,8 @@ def run(config, root_dir, project_dir, local=None):
 			raise AttributeError(f'Invalid entry: {include}')
 		expanded_include = expand_path(include)
 		print(expanded_include, file=f)
+		if not os.path.isdir(expanded_include):
+			print(f'WARNING: Include does not exist: {expanded_include}')
 
 	with open(f'{project_dir}/{name}.includes', 'w') as f:
 		includes = config.get('includes')
@@ -126,11 +128,17 @@ def run(config, root_dir, project_dir, local=None):
 			#print(f'path={path}; {expanded_path};')
 			files = glob.glob(expanded_path, recursive=True)
 			#print(f'file={files};')
+			total_count = 0
+			added_count = 0
 			for fp in files:
 				if os.path.isfile(fp):
+					total_count += 1
 					if not is_ignored(fp):
 						if not fp in exclude_paths:
 							print(fp, file=f)
+							added_count += 1
+			if total_count == 0:
+				print(f'WARNING: Path does not have files: {expanded_path}')
 
 
 def main():
