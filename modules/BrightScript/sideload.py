@@ -61,7 +61,10 @@ def main():
 	parser.add_argument('--device', required=False)
 	args = parser.parse_args()
 
-	device = brs.Device(args.device)
+	device_name = os.getenv('ROKU_DEVICE')
+	if device_name is None:
+		device_name = args.device
+	device = brs.Device(device_name)
 
 	# check ECP, to verify we are talking to a Roku
 	def check_device():

@@ -8,6 +8,10 @@ find_package(PythonCompiler REQUIRED)
 find_package(Flat REQUIRED)
 
 
+set(BrightScript_DefaultAuthTokensUser "" CACHE STRING "")
+set(BrightScript_DefaultAuthTokensFile "" CACHE PATH "")
+
+
 set(BrightScript_CreateUpdateFileScript "${CMAKE_CURRENT_LIST_DIR}/create-update-file.py")
 set(BrightScript_MergeModulesScript "${CMAKE_CURRENT_LIST_DIR}/merge-modules.py")
 set(BrightScript_MergeManifestsScript "${CMAKE_CURRENT_LIST_DIR}/merge-manifests.py")
@@ -15,10 +19,32 @@ set(BrightScript_CreateZipScript "${CMAKE_CURRENT_LIST_DIR}/create-zip.py")
 set(BrightScript_SideloadScript "${CMAKE_CURRENT_LIST_DIR}/sideload.py")
 set(BrightScript_PkgScript "${CMAKE_CURRENT_LIST_DIR}/pkg.py")
 set(BrightScript_CreateAuthTokenScript "${CMAKE_CURRENT_LIST_DIR}/create-auth-token.py")
+#set(BrightScript_GetAuthTokenChannelsScript "${CMAKE_CURRENT_LIST_DIR}/get-auth-token-channels.py")
+
+
+#function(brightscript_add_auth_token_targets)
+#	cmake_parse_arguments(arg "" "USER;AUTH_TOKENS_FILE" "" ${ARGN})
+
+#	execute_process(
+#		COMMAND
+#			${PYTHON_EXECUTABLE} "${BrightScript_GetAuthTokenChannelsScript}"
+#				--user "${arg_USER}"
+#				--auth-tokens-file "${args_AUTH_TOKENS_FILE}"
+#		OUTPUT_VARIABLE
+#			channels
+#	)
+#	message("channels=${channels}==")
+
+#	set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+#		"${BrightScript_GetAuthTokenChannelsScript}"
+#		"${arg_AUTH_TOKENS_FILE}"
+#	)
+#endfunction()
 
 
 function(brightscript_add_module NAME)
-	cmake_parse_arguments(arg "" "SOURCE_DIR;MANIFEST" "DIRS;DEPENDS;FILES" ${ARGN})
+	cmake_parse_arguments(arg "" "SOURCE_DIR;MANIFEST"
+			"DIRS;DEPENDS;FILES;FILES_DONE_FILES;MANIFEST_DONE_FILES" ${ARGN})
 
 	set(target BrightScript_Module_${NAME})
 
@@ -26,6 +52,18 @@ function(brightscript_add_module NAME)
 		set(manifest RAW)
 	else()
 		set(manifest "${arg_MANIFEST}")
+	endif()
+
+	if (arg_FILES_DONE_FILES)
+		set(files_done_files ${arg_FILES_DONE_FILES})
+	else()
+		set(files_done_files)
+	endif()
+
+	if (arg_MANIFEST_DONE_FILES)
+		set(manifest_done_files ${arg_MANIFEST_DONE_FILES})
+	else()
+		set(manifest_done_files)
 	endif()
 
 	set(root_dir "${CMAKE_CURRENT_BINARY_DIR}")
@@ -47,6 +85,7 @@ function(brightscript_add_module NAME)
 				DEPENDS
 					"${BrightScript_CreateUpdateFileScript}"
 					${arg_FILES}
+					${files_done_files}
 			)
 		else()
 			set(scan_target BrightScript_Module_${NAME}_Scan)
@@ -66,6 +105,8 @@ function(brightscript_add_module NAME)
 		add_custom_target(${target}
 			DEPENDS
 				"${scan_file}"
+				${files_done_files}
+				${manifest_done_files}
 		)
 
 		set_target_properties(${target}
@@ -84,11 +125,31 @@ function(brightscript_add_module NAME)
 			BRS_MANIFEST
 				${manifest}
 	)
+
+	if (arg_MANIFEST_DONE_FILES)
+		set_target_properties(${target}
+			PROPERTIES
+				BRS_MANIFEST_DONE_FILES
+					${arg_MANIFEST_DONE_FILES}
+		)
+	endif()
 endfunction()
 
 
 function(brightscript_add_auth_token_module NAME)
-	cmake_parse_arguments(arg "" "CHANNEL_ID;AUTH_TOKENS_FILE" "" ${ARGN})
+	cmake_parse_arguments(arg "" "USER;FILE;ID" "" ${ARGN})
+
+	if (NOT arg_USER)
+		set(user "${BrightScript_DefaultAuthTokensUser}")
+	else()
+		set(user "${arg_USER}")
+	endif()
+
+	if (NOT arg_AUTH_TOKENS_FILE)
+		set(file "${BrightScript_DefaultAuthTokensFile}")
+	else()
+		set(file "${arg_AUTH_TOKENS_FILE}")
+	endif()
 
 	set(manifest_file "${CMAKE_CURRENT_BINARY_DIR}/auth-token-manifest-${NAME}.yaml")
 	set(done_file "${CMAKE_CURRENT_BINARY_DIR}/auth-token-${NAME}.done")
@@ -100,27 +161,31 @@ function(brightscript_add_auth_token_module NAME)
 			"${manifest_file}"
 		COMMAND
 			${PYTHON_EXECUTABLE} "${BrightScript_CreateAuthTokenScript}"
+				--user "${user}"
+				--file "${file}"
+				--id "${arg_ID}"
 				--done-file "${done_file}"
 				--manifest-file "${manifest_file}"
-				--auth-tokens-file "${arg_AUTH_TOKENS_FILE}"
-				--channel-id "${arg_CHANNEL_ID}"
 		DEPENDS
 			"${BrightScript_CreateAuthTokenScript}"
-			"${arg_AUTH_TOKENS_FILE}"
+			"${file}"
 	)
 
-	set(manifest_target BrightScript_Module_${NAME}_Manifest)
+	set(manifest_target BrightScript_Module_${NAME}_AuthToken_Manifest)
 
+	# dummy target, otherwise done_file rule is not generated, cmake bug?
 	add_custom_target(${manifest_target}
 		DEPENDS
 			"${done_file}"
 	)
 
-	brightscript_add_module(${NAME}
+	brightscript_add_module(${NAME}_AuthToken
 		SOURCE_DIR
 			NONE
 		MANIFEST
 			"${manifest_file}"
+		MANIFEST_DONE_FILES
+			"${done_file}"
 	)
 endfunction()
 
@@ -218,8 +283,13 @@ function(brightscript_add_package NAME)
 	set(manifest_targets)
 	set(package_manifest_file "${package_dir}/manifest")
 	set(manifest_files)
+	set(manifest_done_files)
 	foreach (module ${modules})
 		get_target_property(manifest BrightScript_Module_${module} BRS_MANIFEST)
+		get_target_property(this_manifest_done_files BrightScript_Module_${module} BRS_MANIFEST_DONE_FILES)
+		if (this_manifest_done_files)
+			list(APPEND manifest_done_files ${this_manifest_done_files})
+		endif()
 		if (NOT "${manifest}" STREQUAL NONE)
 			get_target_property(source_dir BrightScript_Module_${module} BRS_SOURCE_DIR)
 			if ("${manifest}" STREQUAL RAW)
@@ -248,6 +318,7 @@ function(brightscript_add_package NAME)
 		DEPENDS
 			"${BrightScript_MergeManifestsScript}"
 			${manifest_files}
+			${manifest_done_files}
 	)
 
 	# compile brightscript sources

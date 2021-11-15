@@ -20,6 +20,7 @@ class LineParser(html.parser.HTMLParser):
 		html.parser.HTMLParser.__init__(self)
 		self.tree = []
 		self.file = None
+		self.message = None
 
 	def handle_starttag(self, tag, attrs):
 #		print(f'starttag {tag} {attrs}')
@@ -48,7 +49,9 @@ class LineParser(html.parser.HTMLParser):
 		current_path = get_path()
 #		print(f'path={current_path}')
 
-		if current_path == 'div/font/a':
+		if current_path == 'div/font':
+			self.message = data
+		elif current_path == 'div/font/a':
 #			print(f'pkg={data};')
 			self.file = data
 
@@ -107,7 +110,7 @@ class PkgParser(html.parser.HTMLParser):
 #						print(f'line_body={line_body};')
 						line_parser = LineParser()
 						line_parser.feed(line_body)
-						if line_parser.file is None: raise RuntimeError()
+						if line_parser.file is None: raise RuntimeError(line_parser.message)
 						self.file = line_parser.file
 					except RuntimeError as e:
 						raise RuntimeError(f'Invalid pkg line: {line}')

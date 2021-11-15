@@ -45,9 +45,14 @@ def parse_yaml_manifest(filePath):
 		nonlocal entries
 		nums = v.split('.')
 		if len(nums) != 3: raise AttributeError(f'Invalid version: {v}')
-		entries['major_version'] = nums[0]
-		entries['minor_version'] = nums[1]
-		entries['build_version'] = nums[2]
+		def get_num(i):
+			nonlocal nums
+			v = int(nums[i])
+			if v < 0 or v > 99999: raise AttributeError(f'Invalid version: {v}')
+			return str(v)
+		entries['major_version'] = get_num(0)
+		entries['minor_version'] = get_num(1)
+		entries['build_version'] = get_num(2)
 
 	def parse_default(k, v):
 		nonlocal entries
