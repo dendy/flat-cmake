@@ -44,7 +44,7 @@ set(BrightScript_CreateAuthTokenScript "${CMAKE_CURRENT_LIST_DIR}/create-auth-to
 
 function(brightscript_add_module NAME)
 	cmake_parse_arguments(arg "" "SOURCE_DIR;MANIFEST"
-			"DIRS;DEPENDS;FILES;FILES_DONE_FILES;MANIFEST_DONE_FILES" ${ARGN})
+			"DIRS;DEPENDS;DEPEND_TARGETS;FILES;SCAN_FILE;MANIFEST_DONE_FILES" ${ARGN})
 
 	set(target BrightScript_Module_${NAME})
 
@@ -52,12 +52,6 @@ function(brightscript_add_module NAME)
 		set(manifest RAW)
 	else()
 		set(manifest "${arg_MANIFEST}")
-	endif()
-
-	if (arg_FILES_DONE_FILES)
-		set(files_done_files ${arg_FILES_DONE_FILES})
-	else()
-		set(files_done_files)
 	endif()
 
 	if (arg_MANIFEST_DONE_FILES)
@@ -71,41 +65,43 @@ function(brightscript_add_module NAME)
 	if ("${arg_SOURCE_DIR}" STREQUAL NONE)
 		add_custom_target(${target})
 	else()
-		set(scan_file "${root_dir}/${NAME}.scan.done")
-
-		if (arg_FILES)
-			add_custom_command(
-				OUTPUT
-					"${scan_file}"
-				COMMAND
-					${PYTHON_EXECUTABLE} "${BrightScript_CreateUpdateFileScript}"
-						--output "${scan_file}"
-						--source-dir "${arg_SOURCE_DIR}"
-						--files ${arg_FILES}
-				DEPENDS
-					"${BrightScript_CreateUpdateFileScript}"
-					${arg_FILES}
-					${files_done_files}
-			)
+		if (arg_SCAN_FILE)
+			set(scan_file "${arg_SCAN_FILE}")
 		else()
-			set(scan_target BrightScript_Module_${NAME}_Scan)
+			set(scan_file "${root_dir}/${NAME}.scan.done")
 
-			set(paths)
-			foreach (dir ${arg_DIRS})
-				list(APPEND paths "${arg_SOURCE_DIR}/${dir}/**")
-			endforeach()
+			if (arg_FILES)
+				add_custom_command(
+					OUTPUT
+						"${scan_file}"
+					COMMAND
+						${PYTHON_EXECUTABLE} "${BrightScript_CreateUpdateFileScript}"
+							--output "${scan_file}"
+							--source-dir "${arg_SOURCE_DIR}"
+							--files ${arg_FILES}
+					DEPENDS
+						"${BrightScript_CreateUpdateFileScript}"
+						${arg_FILES}
+				)
+			else()
+				set(scan_target BrightScript_Module_${NAME}_Scan)
 
-			flat_collect_files(${scan_target} "${scan_file}"
-				DEPEND_ON_FILES
-				RELATIVE "${arg_SOURCE_DIR}"
-				PATHS ${paths}
-			)
+				set(paths)
+				foreach (dir ${arg_DIRS})
+					list(APPEND paths "${arg_SOURCE_DIR}/${dir}/**")
+				endforeach()
+
+				flat_collect_files(${scan_target} "${scan_file}"
+					DEPEND_ON_FILES
+					RELATIVE "${arg_SOURCE_DIR}"
+					PATHS ${paths}
+				)
+			endif()
 		endif()
 
 		add_custom_target(${target}
 			DEPENDS
 				"${scan_file}"
-				${files_done_files}
 				${manifest_done_files}
 		)
 
@@ -122,6 +118,8 @@ function(brightscript_add_module NAME)
 				"${arg_SOURCE_DIR}"
 			BRS_DEPENDS
 				"${arg_DEPENDS}"
+			BRS_DEPEND_TARGETS
+				"${arg_DEPEND_TARGETS}"
 			BRS_MANIFEST
 				${manifest}
 	)
@@ -284,12 +282,20 @@ function(brightscript_add_package NAME)
 	set(package_manifest_file "${package_dir}/manifest")
 	set(manifest_files)
 	set(manifest_done_files)
+	set(depend_targets)
 	foreach (module ${modules})
 		get_target_property(manifest BrightScript_Module_${module} BRS_MANIFEST)
 		get_target_property(this_manifest_done_files BrightScript_Module_${module} BRS_MANIFEST_DONE_FILES)
+		get_target_property(this_depend_targets BrightScript_Module_${module} BRS_DEPEND_TARGETS)
+
 		if (this_manifest_done_files)
 			list(APPEND manifest_done_files ${this_manifest_done_files})
 		endif()
+
+		if (NOT this_depend_targets STREQUAL "")
+			list(APPEND depend_targets ${this_depend_targets})
+		endif()
+
 		if (NOT "${manifest}" STREQUAL NONE)
 			get_target_property(source_dir BrightScript_Module_${module} BRS_SOURCE_DIR)
 			if ("${manifest}" STREQUAL RAW)
@@ -370,6 +376,7 @@ function(brightscript_add_package NAME)
 	add_dependencies(${package_target}
 		${scan_targets}
 		${manifest_targets}
+		${depend_targets}
 		brightscript
 	)
 
