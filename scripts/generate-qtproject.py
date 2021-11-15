@@ -9,7 +9,7 @@ import argparse
 import sys
 
 
-def run(config, root_dir, project_dir, local=None):
+def run(config_path, root_dir, project_dir, local_path=None):
 	platform_name_for_sys_platform = dict(
 		linux  = 'linux',
 		win32  = 'win',
@@ -30,24 +30,56 @@ def run(config, root_dir, project_dir, local=None):
 		if paths is None: paths = []
 		return paths
 
-	with open(config, 'r') as f:
+	with open(config_path, 'r') as f:
 		config = yaml.load(f, Loader=yaml.FullLoader)
 
 	name = config['name']
 
+	if not local_path is None:
+		with open(local_path, 'r') as f:
+			local = yaml.load(f, Loader=yaml.FullLoader)
+	else:
+		local = None
+
 	os.makedirs(project_dir, exist_ok=True)
+
+	def get_object(key, required):
+		nonlocal config
+		nonlocal local
+		if required:
+			c = config[key]
+		else:
+			c = config.get(key)
+		l = local.get(key)
+		return c, l
+
+	def get_array(key, required):
+		c, l = get_object(key, required)
+		if c is None and l is None: return
+		if c is None: c = []
+		if not l is None:
+			c += l
+		return c
+
+	def get_dict(key, required):
+		c, l = get_object(key, required)
+		if c is None and l is None: return
+		if c is None: c = dict()
+		if not l is None:
+			c.update(l)
+		return c
 
 	with open(f'{project_dir}/{name}.creator', 'w') as f:
 		print('[General]', file=f)
 
 	with open(f'{project_dir}/{name}.cflags', 'w') as f:
-		print(' '.join(config['cflags']), file=f)
+		print(' '.join(get_array('cflags', True)), file=f)
 
 	with open(f'{project_dir}/{name}.cxxflags', 'w') as f:
-		print(' '.join(config['cxxflags']), file=f)
+		print(' '.join(get_array('cxxflags', True)), file=f)
 
 	with open(f'{project_dir}/{name}.config', 'w') as f:
-		macros = config.get('macros')
+		macros = get_dict('macros', False)
 		if not macros is None:
 			for key, value in macros.items():
 				value_type = type(value)
@@ -65,12 +97,10 @@ def run(config, root_dir, project_dir, local=None):
 			return value
 
 	if not local is None:
-		with open(local, 'r') as f:
-			local = yaml.load(f, Loader=yaml.FullLoader)
-			local_mappings = local.get('mappings')
-			if not local_mappings is None:
-				local_mappings = {key: user_expanded_value(value)
-						for key, value in local_mappings.items()}
+		local_mappings = local.get('mappings')
+		if not local_mappings is None:
+			local_mappings = {key: user_expanded_value(value)
+					for key, value in local_mappings.items()}
 	else:
 		local_mappings = None
 
@@ -96,7 +126,7 @@ def run(config, root_dir, project_dir, local=None):
 			print(f'WARNING: Include does not exist: {expanded_include}')
 
 	with open(f'{project_dir}/{name}.includes', 'w') as f:
-		includes = config.get('includes')
+		includes = get_array('includes', False)
 		if not includes is None:
 			for include in includes:
 #				print(include)
@@ -106,7 +136,7 @@ def run(config, root_dir, project_dir, local=None):
 				else:
 					process_include(include)
 
-	ignores = config.get('ignore')
+	ignores = get_array('ignore', False)
 	def is_ignored(path):
 		nonlocal ignores
 		if ignores is None: return False
@@ -115,7 +145,7 @@ def run(config, root_dir, project_dir, local=None):
 		return False
 
 	exclude_paths = []
-	excludes = config.get('exclude')
+	excludes = get_array('exclude', False)
 	if not excludes is None:
 		for path in excludes:
 			expanded_path = expand_path(path)
@@ -123,7 +153,7 @@ def run(config, root_dir, project_dir, local=None):
 #	print(f'exclude_paths={exclude_paths};')
 
 	with open(f'{project_dir}/{name}.files', 'w') as f:
-		for path in config['files']:
+		for path in get_array('files', True):
 			expanded_path = expand_path(path)
 			#print(f'path={path}; {expanded_path};')
 			files = glob.glob(expanded_path, recursive=True)
