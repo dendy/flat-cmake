@@ -144,29 +144,44 @@ def run(config_path, root_dir, project_dir, local_path=None):
 			if fnmatch.fnmatchcase(path, i): return True
 		return False
 
+	exclude_prefixes = []
 	exclude_paths = []
 	excludes = get_array('exclude', False)
 	if not excludes is None:
 		for path in excludes:
 			expanded_path = expand_path(path)
-			exclude_paths += glob.glob(expanded_path, recursive=True)
-#	print(f'exclude_paths={exclude_paths};')
+			if '*' in expanded_path:
+				exclude_paths += glob.glob(expanded_path, recursive=True)
+			else:
+				exclude_prefixes.append(expanded_path)
+	#print(f'exclude_paths={exclude_paths};')
+	#print(f'exclude_prefixes={exclude_prefixes};')
+
+	def is_excluded_prefix(path):
+		nonlocal exclude_prefixes
+		for p in exclude_prefixes:
+			if path.startswith(p):
+				return True
+		return False
 
 	with open(f'{project_dir}/{name}.files', 'w') as f:
 		for path in get_array('files', True):
 			expanded_path = expand_path(path)
-			#print(f'path={path}; {expanded_path};')
-			files = glob.glob(expanded_path, recursive=True)
-			#print(f'file={files};')
-			total_count = 0
-			added_count = 0
-			for fp in files:
-				if os.path.isfile(fp):
-					total_count += 1
-					if not is_ignored(fp):
-						if not fp in exclude_paths:
-							print(fp, file=f)
-							added_count += 1
+			if not is_excluded_prefix(expanded_path):
+				#print(f'path={path}; {expanded_path};')
+				files = glob.glob(expanded_path, recursive=True)
+				#print(f'file={files};')
+				total_count = 0
+				added_count = 0
+				for fp in files:
+					if os.path.isfile(fp):
+						total_count += 1
+						if not is_ignored(fp):
+							if not fp in exclude_paths:
+								print(fp, file=f)
+								added_count += 1
+			else:
+				print(f'excluded: {expanded_path}')
 			if total_count == 0:
 				print(f'WARNING: Path does not have files: {expanded_path}')
 
