@@ -327,25 +327,33 @@ function(brightscript_add_package NAME)
 			${manifest_done_files}
 	)
 
-	# compile brightscript sources
-	set(package_compile_check_done_file "${root_dir}/package.compile.check.done")
+	if (TARGET brightscript)
+		# compile brightscript sources
+		set(package_compile_check_done_file "${root_dir}/package.compile.check.done")
 
-	add_custom_command(
-		OUTPUT
-			"${package_compile_check_done_file}"
-		COMMAND
-			"$<TARGET_FILE:brightscript>"
-				check
-#				-all-source
-				-platlib "${BrightScript_ProjectDir}/Scripts/LibCore"
-				"${package_dir}"
-		COMMAND
-			${CMAKE_COMMAND} -E touch "${package_compile_check_done_file}"
-		DEPENDS
-			"${package_merge_update_done_file}"
-			"${package_manifest_file}"
-			"$<TARGET_FILE:brightscript>"
-	)
+		add_custom_command(
+			OUTPUT
+				"${package_compile_check_done_file}"
+			COMMAND
+				"$<TARGET_FILE:brightscript>"
+					check
+	#				-all-source
+					-platlib "${BrightScript_ProjectDir}/Scripts/LibCore"
+					"${package_dir}"
+			COMMAND
+				${CMAKE_COMMAND} -E touch "${package_compile_check_done_file}"
+			DEPENDS
+				"${package_merge_update_done_file}"
+				"${package_manifest_file}"
+				"$<TARGET_FILE:brightscript>"
+		)
+
+		set(package_compile_check_target "${package_compile_check_done_file}")
+		set(brightscript_target brightscript)
+	else()
+		set(package_compile_check_target)
+		set(brightscript_target)
+	endif()
 
 	# create zip
 	set(package_zip_file "${root_dir}/package.zip")
@@ -359,7 +367,7 @@ function(brightscript_add_package NAME)
 				--package-dir "${package_dir}"
 		DEPENDS
 			"${BrightScript_CreateZipScript}"
-			"${package_compile_check_done_file}"
+			${package_compile_check_target}
 	)
 
 	# package target
@@ -369,7 +377,6 @@ function(brightscript_add_package NAME)
 		DEPENDS
 			"${package_merge_check_done_file}"
 			"${package_manifest_file}"
-			"${package_compile_check_done_file}"
 			"${package_zip_file}"
 	)
 
@@ -377,7 +384,7 @@ function(brightscript_add_package NAME)
 		${scan_targets}
 		${manifest_targets}
 		${depend_targets}
-		brightscript
+		${brightscript_target}
 	)
 
 	set(device_args)
