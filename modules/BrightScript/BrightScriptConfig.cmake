@@ -8,7 +8,11 @@ find_package(PythonCompiler REQUIRED)
 find_package(Flat REQUIRED)
 
 
+# Determine current user, which will be used to resolve this user's channel auth
+# token when making a .pkg file. TeamCity build should be configured with a
+# -D User=roku
 set(BrightScript_DefaultAuthTokensUser "" CACHE STRING "")
+
 set(BrightScript_DefaultAuthTokensFile "" CACHE PATH "")
 
 
@@ -19,27 +23,6 @@ set(BrightScript_CreateZipScript "${CMAKE_CURRENT_LIST_DIR}/create-zip.py")
 set(BrightScript_SideloadScript "${CMAKE_CURRENT_LIST_DIR}/sideload.py")
 set(BrightScript_PkgScript "${CMAKE_CURRENT_LIST_DIR}/pkg.py")
 set(BrightScript_CreateAuthTokenScript "${CMAKE_CURRENT_LIST_DIR}/create-auth-token.py")
-#set(BrightScript_GetAuthTokenChannelsScript "${CMAKE_CURRENT_LIST_DIR}/get-auth-token-channels.py")
-
-
-#function(brightscript_add_auth_token_targets)
-#	cmake_parse_arguments(arg "" "USER;AUTH_TOKENS_FILE" "" ${ARGN})
-
-#	execute_process(
-#		COMMAND
-#			${PYTHON_EXECUTABLE} "${BrightScript_GetAuthTokenChannelsScript}"
-#				--user "${arg_USER}"
-#				--auth-tokens-file "${args_AUTH_TOKENS_FILE}"
-#		OUTPUT_VARIABLE
-#			channels
-#	)
-#	message("channels=${channels}==")
-
-#	set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-#		"${BrightScript_GetAuthTokenChannelsScript}"
-#		"${arg_AUTH_TOKENS_FILE}"
-#	)
-#endfunction()
 
 
 function(brightscript_add_module NAME)
@@ -138,15 +121,31 @@ function(brightscript_add_auth_token_module NAME)
 	cmake_parse_arguments(arg "" "USER;FILE;ID" "" ${ARGN})
 
 	if (NOT arg_USER)
-		set(user "${BrightScript_DefaultAuthTokensUser}")
+		if ("${BrightScript_DefaultAuthTokensUser}" STREQUAL "")
+			# user was not specified, so resolve it to USER env var, but make it
+			# optional, it is noop is such a user does not exist in the
+			# auth-token config file
+			set(user "$ENV{USER}")
+			set(user_required NO)
+		else()
+			set(user "${BrightScript_DefaultAuthTokensUser}")
+			set(user_required YES)
+		endif()
 	else()
 		set(user "${arg_USER}")
+		set(user_required YES)
 	endif()
 
 	if (NOT arg_AUTH_TOKENS_FILE)
 		set(file "${BrightScript_DefaultAuthTokensFile}")
 	else()
 		set(file "${arg_AUTH_TOKENS_FILE}")
+	endif()
+
+	if (user_required)
+		set(user_required_args --user-required)
+	else()
+		set(user_required_args)
 	endif()
 
 	set(manifest_file "${CMAKE_CURRENT_BINARY_DIR}/auth-token-manifest-${NAME}.yaml")
@@ -160,6 +159,7 @@ function(brightscript_add_auth_token_module NAME)
 		COMMAND
 			${PYTHON_EXECUTABLE} "${BrightScript_CreateAuthTokenScript}"
 				--user "${user}"
+				${user_required_args}
 				--file "${file}"
 				--id "${arg_ID}"
 				--done-file "${done_file}"

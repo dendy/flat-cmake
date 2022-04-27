@@ -9,6 +9,7 @@ import yaml
 def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--user', required=True)
+	parser.add_argument('--user-required', action='store_true')
 	parser.add_argument('--file', required=True)
 	parser.add_argument('--id', required=True)
 	parser.add_argument('--done-file', required=True)
@@ -32,7 +33,10 @@ def main():
 	new_token = None
 
 	user = users.get(args.user)
-	if not user is None:
+	if user is None:
+		if args.user_required:
+			raise AttributeError(f'Required user is missing in auth-token config file: {args.user}')
+	else:
 		for entry in user:
 			if args.id in entry['channels']:
 				new_token = entry['token']
