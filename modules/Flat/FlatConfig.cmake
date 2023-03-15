@@ -870,7 +870,7 @@ endfunction()
 # flat_make_launch_script() implicitly calls flat_cache_env(${ENV}).
 #
 # Arguments:
-#   ENV   - environment variable names, values will be taken from environment
+#   ENV   - environment variable names, values will be read from environment
 #   VARS  - environment variable name/value pairs
 #   PATHS - paths to be added to PATH environment variable
 
