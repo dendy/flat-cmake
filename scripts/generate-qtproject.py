@@ -118,7 +118,7 @@ def run(config_path, root_dir, project_dir, local_path=None):
 	def expand_path(path):
 		nonlocal local_mappings
 		nonlocal root_dir
-		expanded_path = path
+		expanded_path = os.path.expanduser(path)
 		if not local_mappings is None:
 			for key, value in local_mappings.items():
 				expanded_path = expanded_path.replace(f'${key}', value)
