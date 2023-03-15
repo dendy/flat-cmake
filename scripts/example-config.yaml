@@ -8,7 +8,7 @@ cxxflags:
   - -std=c++17
 
 macros:
-  MY_MACRO_FLAG: ''
+  MY_MACRO_FLAG:
   MY_MACRO_STRING: i am macro string
   MY_MACRO_INT: 42
 

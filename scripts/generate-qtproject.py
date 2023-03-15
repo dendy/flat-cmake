@@ -10,6 +10,9 @@ import sys
 
 
 def run(config_path, root_dir, project_dir, local_path=None):
+	config_path = os.path.realpath(config_path)
+	root_dir = os.path.realpath(root_dir)
+
 	platform_name_for_sys_platform = dict(
 		linux  = 'linux',
 		win32  = 'win',
@@ -50,7 +53,10 @@ def run(config_path, root_dir, project_dir, local_path=None):
 			c = config[key]
 		else:
 			c = config.get(key)
-		l = local.get(key)
+		if local is None:
+			l = None
+		else:
+			l = local.get(key)
 		return c, l
 
 	def get_array(key, required):
@@ -104,6 +110,11 @@ def run(config_path, root_dir, project_dir, local_path=None):
 	else:
 		local_mappings = None
 
+	if local_mappings is None:
+		local_mappings = dict()
+	#print(f'config_path={config_path};')
+	local_mappings['config_dir'] = os.path.dirname(config_path)
+
 	def expand_path(path):
 		nonlocal local_mappings
 		nonlocal root_dir
@@ -115,7 +126,7 @@ def run(config_path, root_dir, project_dir, local_path=None):
 			raise AttributeError(f'Path not fully expanded: {path}')
 		if not os.path.isabs(expanded_path):
 			expanded_path = f'{root_dir}/{expanded_path}'
-		return expanded_path
+		return os.path.realpath(expanded_path)
 
 	def process_include(include):
 		if type(include) != str:
@@ -166,22 +177,32 @@ def run(config_path, root_dir, project_dir, local_path=None):
 
 	with open(f'{project_dir}/{name}.files', 'w') as f:
 		for path in get_array('files', True):
+			print(file=f)
+			print(f'# {path}', file=f)
 			expanded_path = expand_path(path)
-			if not is_excluded_prefix(expanded_path):
-				#print(f'path={path}; {expanded_path};')
-				files = glob.glob(expanded_path, recursive=True)
-				#print(f'file={files};')
-				total_count = 0
-				added_count = 0
-				for fp in files:
-					if os.path.isfile(fp):
-						total_count += 1
-						if not is_ignored(fp):
-							if not fp in exclude_paths:
-								print(fp, file=f)
-								added_count += 1
-			else:
-				print(f'excluded: {expanded_path}')
+
+			if is_excluded_prefix(expanded_path):
+				#print(f'excluded: {expanded_path}')
+				continue
+
+			#print(f'path={path}; {expanded_path}; root_dir={root_dir};')
+			files = glob.glob(expanded_path, recursive=True)
+			#print(f'file={files};')
+			total_count = 0
+			added_count = 0
+			for fp in files:
+				if not os.path.isfile(fp):
+					continue
+				total_count += 1
+				if is_excluded_prefix(fp):
+					continue
+				if is_ignored(fp):
+					continue
+				if fp in exclude_paths:
+					continue
+				print(fp, file=f)
+				added_count += 1
+
 			if total_count == 0:
 				print(f'WARNING: Path does not have files: {expanded_path}')
 
